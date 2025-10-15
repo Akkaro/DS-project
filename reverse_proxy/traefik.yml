@@ -3,31 +3,27 @@ log:
   level: INFO
 
 accessLog: 
-  filePath: "/var/log/traefik/access.log" # Path to access log file
+  filePath: "/var/log/traefik/access.log"
   format: common
 
 # Enable the Traefik dashboard and API
 api:
   dashboard: true
-  insecure: true # Allows access to the dashboard without authentication (not recommended for production)
+  insecure: true  # Accessible at port 8888
 
-# Define entry points for HTTP and HTTPS
+# Define entry points
 entryPoints:
   web:
     address: ":80"
-  
-  # Enables HTTPS 
-  # websecure:
-    # address: ":443"
 
-
-# Configure providers (where Traefik gets routing info)
+# Configure providers
 providers:
   # Docker provider - auto-discover containers with labels
   docker:
-    exposedByDefault: false # Only expose containers with traefik.enable=true
-    network: proxy-network # Which Docker network to use
+    exposedByDefault: false
+    network: ems-network
+  
   # File provider - read routing rules from files
   file:
     directory: "/etc/traefik/dynamic"
-    watch: true # Auto-reload when files change
+    watch: true  # Auto-reload when files change

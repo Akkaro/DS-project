@@ -4,15 +4,33 @@ ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 ENV CATALINA_OPTS="-Duser.timezone=UTC"
 
-COPY ./pom.xml /demo/pom.xml
 WORKDIR /demo
-RUN mvn dependency:go-offline
-COPY ./src/ /demo/src
-WORKDIR /demo
-RUN mvn clean install -DskipTests
 
+# Copy pom.xml and download dependencies
+COPY ./pom.xml .
+RUN mvn dependency:go-offline -q
+
+# Copy source code
+COPY ./src ./src
+
+# Build the application
+RUN mvn clean package -DskipTests -q && \
+    ls -la /demo/target/ && \
+    ls -la /demo/target/*.jar || echo "JAR not found!"
+
+# Extract the JAR name dynamically
+RUN JAR_FILE=$(ls /demo/target/*.jar | grep -v sources | head -1) && \
+    echo "Found JAR: $JAR_FILE" && \
+    cp "$JAR_FILE" /demo/app.jar
+
+# Runtime stage
 FROM openjdk:25-jdk
-WORKDIR /demo
-COPY --from=build /demo/target/demo-0.0.1-SNAPSHOT.jar /demo/demo.jar
+
+WORKDIR /app
+
+# Copy the built JAR from build stage
+COPY --from=build /demo/app.jar /app/app.jar
+
 EXPOSE 8080
-CMD ["java", "-jar", "demo.jar"]
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -1,39 +1,80 @@
 http:
-  # Define URL routing rules, middlewares, and services
+  # ==========================================
+  # ROUTERS - Define URL routing rules
+  # ==========================================
   routers:
-    nginx-frontend:
-      rule: "Host(`localhost`)" # Match requests to localhost without /api prefix
+    # Frontend (Root path)
+    frontend:
+      rule: "Host(`localhost`)"
       entryPoints:
-        - web # Listen on the web (HTTP) entry point
-      service: nginx # Forward to the nginx service
+        - web
+      service: frontend
 
-    backend-api:
-      rule: "Host(`localhost`) && PathPrefix(`/api`)" # Match requests to localhost with /api prefix
+    # User Microservice Routes
+    user-service:
+      rule: "Host(`localhost`) && PathPrefix(`/api/users`)"
       entryPoints:
-        - web # Listen on the web (HTTP) entry point
+        - web
       middlewares:
-        - auth-basic # Apply basic auth middleware
-        - strip-api-prefix # Remove /api prefix before forwarding
-      service: api-service
+        - auth-basic
+        - strip-users-prefix
+      service: user-service
 
+    # Device Microservice Routes
+    device-service:
+      rule: "Host(`localhost`) && PathPrefix(`/api/devices`)"
+      entryPoints:
+        - web
+      middlewares:
+        - auth-basic
+        - strip-devices-prefix
+      service: device-service
+
+  # ==========================================
+  # MIDDLEWARES - Transform and validate requests
+  # ==========================================
   middlewares:
-    strip-api-prefix: # Middleware to remove /api prefix
-      stripPrefix: 
-        prefixes:
-          - "/api"
-
-    auth-basic: # Middleware for basic authentication
+    # Basic authentication for API endpoints
+    auth-basic:
       basicAuth:
         users:
-          - "user:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/" # password = "test"
+          - "user:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"  # password = "test"
 
+    # Remove /api/users prefix before forwarding to microservice
+    strip-users-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/users"
+
+    # Remove /api/devices prefix before forwarding to microservice
+    strip-devices-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/devices"
+
+  # ==========================================
+  # SERVICES - Backend endpoints
+  # ==========================================
   services:
-    nginx: 
+    frontend:
       loadBalancer:
         servers:
-          - url: "http://nginx:80" # Container name solved by Docker DNS
+          - url: "http://frontend:80"
 
-    api-service:
+    user-service:
       loadBalancer:
         servers:
-          - url: "http://backend:5000" # Container name solved by Docker DNS
+          - url: "http://user-service:8080"
+        healthCheck:
+          path: /users
+          interval: "30s"
+          timeout: "5s"
+
+    device-service:
+      loadBalancer:
+        servers:
+          - url: "http://device-service:8080"
+        healthCheck:
+          path: /devices
+          interval: "30s"
+          timeout: "5s"

@@ -1,0 +1,161 @@
+version: "3.9"
+
+services:
+  # ==========================================
+  # DATABASE SERVICES
+  # ==========================================
+  user-db:
+    image: postgres:latest
+    container_name: user-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: user_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - ems-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d user_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  device-db:
+    image: postgres:latest
+    container_name: device-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: device_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - device-db-data:/var/lib/postgresql/data
+    networks:
+      - ems-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d device_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # MICROSERVICES
+  # ==========================================
+  user-service:
+    build:
+      context: ./user_microservice/demo
+      dockerfile: ./Dockerfile
+    container_name: user-service
+    restart: always
+    environment:
+      - DB_IP=user-db
+      - DB_PORT=5432
+      - DB_DBNAME=user_db
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - PORT=8080
+    depends_on:
+      user-db:
+        condition: service_healthy
+    networks:
+      - ems-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.user.rule=PathPrefix(`/users`)"
+      - "traefik.http.services.user.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/users"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  device-service:
+    build:
+      context: ./device_microservice/demo
+      dockerfile: ./Dockerfile
+    container_name: device-service
+    restart: always
+    environment:
+      - DB_IP=device-db
+      - DB_PORT=5432
+      - DB_DBNAME=device_db
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - PORT=8080
+    depends_on:
+      device-db:
+        condition: service_healthy
+    networks:
+      - ems-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.device.rule=PathPrefix(`/devices`)"
+      - "traefik.http.services.device.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/devices"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==========================================
+  # FRONTEND
+  # ==========================================
+  frontend:
+    image: nginx:latest
+    container_name: frontend
+    restart: always
+    volumes:
+      - ./reverse_proxy/nginx/html:/usr/share/nginx/html:ro
+    networks:
+      - ems-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+  # ==========================================
+  # REVERSE PROXY (ENTRY POINT)
+  # ==========================================
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: always
+    ports:
+      - "80:80"      # HTTP entrypoint
+      - "8080:8080"  # Optional dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./reverse_proxy/traefik.yml:/etc/traefik/traefik.yml:ro"
+      - "./reverse_proxy/dynamic:/etc/traefik/dynamic:ro"
+      - "./reverse_proxy/logs:/var/log/traefik"
+    depends_on:
+      - user-service
+      - device-service
+      - frontend
+    networks:
+      - ems-network
+
+# ==========================================
+# VOLUMES
+# ==========================================
+volumes:
+  user-db-data:
+    driver: local
+  device-db-data:
+    driver: local
+
+# ==========================================
+# NETWORKS
+# ==========================================
+networks:
+  ems-network:
+    driver: bridge
+    name: ems-network
