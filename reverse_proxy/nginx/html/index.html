@@ -1,0 +1,76 @@
+<!-- 
+
+This HTML file demonstrates a simple frontend example for communicating with a backend API through a reverse proxy.
+    
+-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Backend Communication Example</h1>
+    
+    <button id="fetchBtn" onclick="fetchBackend()">Call Backend API</button>
+    
+    <p>Backend response:</p>
+    <pre id="response">Click the button to fetch data...</pre>
+
+    <script>
+        function fetchBackend() {
+
+            const btn = document.getElementById('fetchBtn');
+            const responseEl = document.getElementById('response');
+            
+            btn.disabled = true;
+            responseEl.innerText = 'Loading...';
+            
+            // Fetch from relative path 
+            fetch('/api/hello')
+                .then((res) => res.text()) // Parse the response as text
+                .then((data) => {
+                    // Update the UI with the response data
+                    responseEl.innerText = data;
+                })
+                .catch((err) => {
+                    // Handle network errors or other issues
+                    responseEl.innerText = 'Error: ' + err;
+                })
+                .finally(() => {
+                    // Re-enable the button after the request completes
+                    btn.disabled = false;
+                });
+        }
+    </script>
+</body>
+</html>

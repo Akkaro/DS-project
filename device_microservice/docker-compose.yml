@@ -1,0 +1,41 @@
+version: '3'
+
+services:
+   db:
+    image: postgres
+    container_name: db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: example-db
+    ports:
+      - "5433:5432"
+    volumes:
+      - my-db:/var/lib/postgresql/data
+    networks:
+      demo_net:
+
+   spring-demo:
+    build:
+      context: ./demo
+      dockerfile: ./Dockerfile
+    container_name: spring-demo
+    ports:
+      - "8081:8080"
+    environment:
+      - DB_IP=db
+      - DB_PORT=5432
+      - DB_DBNAME=example-db
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+    networks:
+      demo_net:
+        
+
+volumes:
+  my-db:
+
+networks:
+  demo_net:
+    external: true
