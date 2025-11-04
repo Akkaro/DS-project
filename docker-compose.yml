@@ -51,6 +51,8 @@ services:
     build:
       context: ./user_microservice/demo
       dockerfile: ./Dockerfile
+    volumes:
+      - ~/.m2:/root/.m2
     container_name: user-service
     restart: always
     environment:
@@ -80,6 +82,8 @@ services:
     build:
       context: ./device_microservice/demo
       dockerfile: ./Dockerfile
+    volumes:
+      - ~/.m2:/root/.m2
     container_name: device-service
     restart: always
     environment:
