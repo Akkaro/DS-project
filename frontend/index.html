@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energy Management System</title>
+    <!-- 1. Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 2. Use Inter font -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for aesthetics */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Style for the modal */
+        #modal-backdrop {
+            transition: opacity 0.3s ease;
+        }
+        #modal-content {
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800">
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+        <h1 class="text-4xl font-bold text-slate-900 mb-8">Energy Management Dashboard</h1>
+
+        <!-- Main Grid Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- ====== USER MANAGEMENT COLUMN ====== -->
+            <div class="space-y-8">
+                <!-- Card: Create User -->
+                <div class="bg-white shadow-lg rounded-xl p-6">
+                    <h2 class="text-2xl font-semibold mb-4">Create New User</h2>
+                    <form id="form-create-user" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="user-username" class="block text-sm font-medium text-slate-600">Username</label>
+                                <input type="text" id="user-username" name="username" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="user-password" class="block text-sm font-medium text-slate-600">Password</label>
+                                <input type="password" id="user-password" name="password" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="user-name" class="block text-sm font-medium text-slate-600">Full Name</label>
+                            <input type="text" id="user-name" name="name" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="user-email" class="block text-sm font-medium text-slate-600">Email (Optional)</label>
+                            <input type="email" id="user-email" name="email" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="user-role" class="block text-sm font-medium text-slate-600">Role</label>
+                            <select id="user-role" name="role" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="CLIENT">Client</option>
+                                <option value="ADMIN">Admin</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-200">
+                            Create User
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Card: User List -->
+                <div class="bg-white shadow-lg rounded-xl p-6">
+                    <h2 class="text-2xl font-semibold mb-4">All Users</h2>
+                    <ul id="list-users" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        <!-- User items will be injected here by JavaScript -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- ====== DEVICE MANAGEMENT COLUMN ====== -->
+            <div class="space-y-8">
+                <!-- Card: Create Device -->
+                <div class="bg-white shadow-lg rounded-xl p-6">
+                    <h2 class="text-2xl font-semibold mb-4">Create New Device</h2>
+                    <form id="form-create-device" class="space-y-4">
+                        <div>
+                            <label for="device-name" class="block text-sm font-medium text-slate-600">Device Name</label>
+                            <input type="text" id="device-name" name="name" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="device-description" class="block text-sm font-medium text-slate-600">Description</label>
+                            <input type="text" id="device-description" name="description" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="device-address" class="block text-sm font-medium text-slate-600">Address</label>
+                            <input type="text" id="device-address" name="address" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="device-maxConsumption" class="block text-sm font-medium text-slate-600">Max Consumption (W)</label>
+                                <input type="number" step="0.1" id="device-maxConsumption" name="maxConsumption" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="device-status" class="block text-sm font-medium text-slate-600">Status</label>
+                                <select id="device-status" name="status" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="ACTIVE">Active</option>
+                                    <option value="INACTIVE">Inactive</option>
+                                    <option value="MAINTENANCE">Maintenance</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-emerald-700 transition duration-200">
+                            Create Device
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Card: Assign Device -->
+                <div class="bg-white shadow-lg rounded-xl p-6">
+                    <h2 class="text-2xl font-semibold mb-4">Assign Device to User</h2>
+                    <form id="form-assign-device" class="space-y-4">
+                         <div>
+                            <label for="assign-device-id" class="block text-sm font-medium text-slate-600">Select Device</label>
+                            <select id="assign-device-id" name="deviceId" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Loading devices...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="assign-user-id" class="block text-sm font-medium text-slate-600">Select User</label>
+                            <select id="assign-user-id" name="userId" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Loading users...</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition duration-200">
+                            Assign Device
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Card: Device List -->
+                <div class="bg-white shadow-lg rounded-xl p-6">
+                    <h2 class="text-2xl font-semibold mb-4">All Devices</h2>
+                    <ul id="list-devices" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        <!-- Device items will be injected here by JavaScript -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Messages/Errors -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 opacity-0 pointer-events-none">
+        <div id="modal-content" class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform scale-95 opacity-0">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modal-title" class="text-xl font-semibold">Notification</h3>
+                <button id="modal-close-btn" class="text-slate-500 hover:text-slate-800">&times;</button>
+            </div>
+            <p id="modal-message" class="text-slate-700"></p>
+        </div>
+    </div>
+
+
+    <!-- 3. Main Application JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- API & Auth Configuration ---
+            // Your Traefik path.yml set up Basic Auth
+            const API_USERNAME = 'user';
+            const API_PASSWORD = 'test';
+            // Create the Basic Auth header value
+            const AUTH_HEADER = 'Basic ' + btoa(API_USERNAME + ':' + API_PASSWORD);
+            const API_HEADERS = {
+                'Authorization': AUTH_HEADER,
+                'Content-Type': 'application/json'
+            };
+
+            // --- Element Selectors ---
+            const userForm = document.getElementById('form-create-user');
+            const userList = document.getElementById('list-users');
+            const deviceForm = document.getElementById('form-create-device');
+            const deviceList = document.getElementById('list-devices');
+            const assignForm = document.getElementById('form-assign-device');
+            const assignDeviceSelect = document.getElementById('assign-device-id');
+            const assignUserSelect = document.getElementById('assign-user-id');
+
+            // Modal elements
+            const modalBackdrop = document.getElementById('modal-backdrop');
+            const modalContent = document.getElementById('modal-content');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+
+            // --- Modal Helper ---
+            function showModal(title, message, isError = false) {
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                modalContent.classList.toggle('border-l-4', isError);
+                modalContent.classList.toggle('border-red-500', isError);
+                modalContent.classList.toggle('border-green-500', !isError);
+
+                modalBackdrop.classList.remove('opacity-0', 'pointer-events-none');
+                modalContent.classList.remove('scale-95', 'opacity-0');
+            }
+
+            function hideModal() {
+                modalBackdrop.classList.add('opacity-0', 'pointer-events-none');
+                modalContent.classList.add('scale-95', 'opacity-0');
+            }
+            modalCloseBtn.addEventListener('click', hideModal);
+            modalBackdrop.addEventListener('click', (e) => {
+                if (e.target === modalBackdrop) hideModal();
+            });
+
+
+            // --- API Fetch Functions ---
+
+            // Fetch all users from the user-service
+            async function fetchUsers() {
+                try {
+                    const response = await fetch('/api/users', { headers: { 'Authorization': AUTH_HEADER } });
+                    if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+                    return await response.json();
+                } catch (error) {
+                    showModal('Error Loading Users', error.message, true);
+                    return [];
+                }
+            }
+
+            // Fetch all devices from the device-service
+            async function fetchDevices() {
+                try {
+                    const response = await fetch('/api/devices', { headers: { 'Authorization': AUTH_HEADER } });
+                    if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+                    return await response.json();
+                } catch (error) {
+                    showModal('Error Loading Devices', error.message, true);
+                    return [];
+                }
+            }
+
+            // --- Render Functions ---
+
+            // Render the list of users
+            function renderUserList(users) {
+                userList.innerHTML = ''; // Clear list
+                if (users.length === 0) {
+                    userList.innerHTML = '<li class="text-slate-500">No users found.</li>';
+                    return;
+                }
+                users.forEach(user => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center bg-slate-50 p-3 rounded-lg shadow-sm';
+                    li.innerHTML = `
+                        <div>
+                            <span class="font-semibold text-slate-900">${user.name}</span>
+                            <span class="text-sm text-slate-600 ml-2">(${user.username}) - ${user.role}</span>
+                        </div>
+                        <button data-id="${user.id}" class="delete-user-btn text-red-500 hover:text-red-700 font-medium">Delete</button>
+                    `;
+                    userList.appendChild(li);
+                });
+            }
+
+            // Render the list of devices
+            function renderDeviceList(devices, usersMap) {
+                deviceList.innerHTML = ''; // Clear list
+                if (devices.length === 0) {
+                    deviceList.innerHTML = '<li class="text-slate-500">No devices found.</li>';
+                    return;
+                }
+                devices.forEach(device => {
+                    const assignedUserName = device.userId ? usersMap.get(device.userId) || 'Unknown User' : 'Unassigned';
+                    const userColor = device.userId ? 'text-blue-600' : 'text-slate-500';
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center bg-slate-50 p-3 rounded-lg shadow-sm';
+                    li.innerHTML = `
+                        <div>
+                            <span class="font-semibold text-slate-900">${device.name}</span>
+                            <span class="text-sm ${userColor} ml-2">(${assignedUserName})</span>
+                        </div>
+                        <button data-id="${device.id}" class="delete-device-btn text-red-500 hover:text-red-700 font-medium">Delete</button>
+                    `;
+                    deviceList.appendChild(li);
+                });
+            }
+
+            // Populate the dropdowns in the "Assign" form
+            function populateDropdowns(users, devices) {
+                // Populate user dropdown
+                assignUserSelect.innerHTML = '<option value="">Select a user</option>';
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.name} (${user.username})`;
+                    assignUserSelect.appendChild(option);
+                });
+
+                // Populate device dropdown
+                assignDeviceSelect.innerHTML = '<option value="">Select a device</option>';
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.id;
+                    option.textContent = device.name;
+                    assignDeviceSelect.appendChild(option);
+                });
+            }
+
+            // --- Main Load Function ---
+            let usersMap = new Map();
+            
+            async function loadInitialData() {
+                const users = await fetchUsers();
+                const devices = await fetchDevices();
+
+                // Create a map of UserID -> UserName for easy lookup
+                usersMap = new Map(users.map(u => [u.id, u.name]));
+
+                renderUserList(users);
+                renderDeviceList(devices, usersMap);
+                populateDropdowns(users, devices);
+            }
+
+            // --- Event Listeners ---
+
+            // Handle Create User form submission
+            userForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(userForm);
+                const data = Object.fromEntries(formData.entries());
+
+                try {
+                    const response = await fetch('/api/users', {
+                        method: 'POST',
+                        headers: API_HEADERS,
+                        body: JSON.stringify(data)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.details ? errorData.details.join(', ') : 'Failed to create user');
+                    }
+                    
+                    showModal('Success', 'User created successfully!');
+                    userForm.reset();
+                    loadInitialData(); // Refresh all data
+                } catch (error) {
+                    showModal('Error', error.message, true);
+                }
+            });
+
+            // Handle Create Device form submission
+            deviceForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(deviceForm);
+                const data = Object.fromEntries(formData.entries());
+                data.maxConsumption = parseFloat(data.maxConsumption); // Ensure number
+
+                try {
+                    const response = await fetch('/api/devices', {
+                        method: 'POST',
+                        headers: API_HEADERS,
+                        body: JSON.stringify(data)
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.details ? errorData.details.join(', ') : 'Failed to create device');
+                    }
+
+                    showModal('Success', 'Device created successfully!');
+                    deviceForm.reset();
+                    loadInitialData(); // Refresh all data
+                } catch (error) {
+                    showModal('Error', error.message, true);
+                }
+            });
+
+            // Handle Assign Device form submission
+            assignForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const deviceId = assignDeviceSelect.value;
+                const userId = assignUserSelect.value;
+
+                if (!deviceId || !userId) {
+                    showModal('Warning', 'Please select both a device and a user.', true);
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/devices/${deviceId}/assign/${userId}`, {
+                        method: 'PUT',
+                        headers: API_HEADERS
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to assign device. Is it already assigned?');
+                    }
+                    
+                    showModal('Success', 'Device assigned successfully!');
+                    assignForm.reset();
+                    // Just refresh devices, no need to re-fetch users
+                    const devices = await fetchDevices();
+                    renderDeviceList(devices, usersMap);
+                    populateDropdowns(await fetchUsers(), devices); // Refresh dropdowns too
+                } catch (error) {
+                    showModal('Error', error.message, true);
+                }
+            });
+
+            // Handle Delete User button clicks (using event delegation)
+            userList.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('delete-user-btn')) {
+                    const userId = e.target.dataset.id;
+                    if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) {
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`/api/users/${userId}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': AUTH_HEADER }
+                        });
+
+                        if (!response.ok) throw new Error('Failed to delete user. They may have assigned devices.');
+
+                        showModal('Success', 'User deleted successfully.');
+                        loadInitialData(); // Refresh all data
+                    } catch (error) {
+                        showModal('Error', error.message, true);
+                    }
+                }
+            });
+
+            // Handle Delete Device button clicks (using event delegation)
+            deviceList.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('delete-device-btn')) {
+                    const deviceId = e.target.dataset.id;
+                    if (!confirm('Are you sure you want to delete this device? This cannot be undone.')) {
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`/api/devices/${deviceId}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': AUTH_HEADER }
+                        });
+
+                        if (!response.ok) throw new Error('Failed to delete device.');
+                        
+                        showModal('Success', 'Device deleted successfully.');
+                        loadInitialData(); // Refresh all data
+                    } catch (error) {
+                        showModal('Error', error.message, true);
+                    }
+                }
+            });
+
+            // --- Initial Load ---
+            loadInitialData();
+        });
+    </script>
+</body>
+</html>

@@ -17,7 +17,7 @@ http:
         - web
       middlewares:
         - auth-basic
-        - strip-users-prefix
+        - strip-api-prefix
       service: user-service
 
     # Device Microservice Routes
@@ -27,7 +27,7 @@ http:
         - web
       middlewares:
         - auth-basic
-        - strip-devices-prefix
+        - strip-api-prefix
       service: device-service
 
   # ==========================================
@@ -41,16 +41,10 @@ http:
           - "user:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"  # password = "test"
 
     # Remove /api/users prefix before forwarding to microservice
-    strip-users-prefix:
+    strip-api-prefix:
       stripPrefix:
         prefixes:
-          - "/api/users"
-
-    # Remove /api/devices prefix before forwarding to microservice
-    strip-devices-prefix:
-      stripPrefix:
-        prefixes:
-          - "/api/devices"
+          - "/api"
 
   # ==========================================
   # SERVICES - Backend endpoints

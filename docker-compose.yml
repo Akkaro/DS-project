@@ -51,8 +51,6 @@ services:
     build:
       context: ./user_microservice/demo
       dockerfile: ./Dockerfile
-    volumes:
-      - ~/.m2:/root/.m2
     container_name: user-service
     restart: always
     environment:
@@ -67,10 +65,6 @@ services:
         condition: service_healthy
     networks:
       - ems-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.user.rule=PathPrefix(`/users`)"
-      - "traefik.http.services.user.loadbalancer.server.port=8080"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/users"]
       interval: 30s
@@ -82,8 +76,6 @@ services:
     build:
       context: ./device_microservice/demo
       dockerfile: ./Dockerfile
-    volumes:
-      - ~/.m2:/root/.m2
     container_name: device-service
     restart: always
     environment:
@@ -98,10 +90,6 @@ services:
         condition: service_healthy
     networks:
       - ems-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.device.rule=PathPrefix(`/devices`)"
-      - "traefik.http.services.device.loadbalancer.server.port=8080"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/devices"]
       interval: 30s
@@ -117,13 +105,9 @@ services:
     container_name: frontend
     restart: always
     volumes:
-      - ./reverse_proxy/nginx/html:/usr/share/nginx/html:ro
+      - ./frontend:/usr/share/nginx/html:ro  # <-- This is the new, cleaner line
     networks:
       - ems-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
   # ==========================================
   # REVERSE PROXY (ENTRY POINT)
@@ -133,8 +117,8 @@ services:
     container_name: traefik
     restart: always
     ports:
-      - "80:80"      # HTTP entrypoint
-      - "8080:8080"  # Optional dashboard
+      - "8000:80"      # HTTP entrypoint
+      - "8081:8080"  # Optional dashboard
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./reverse_proxy/traefik.yml:/etc/traefik/traefik.yml:ro"
