@@ -84,24 +84,29 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, body, headers, httpStatus, request);
     }
 
-    @ExceptionHandler(BindException.class)
-    public ResponseEntity<Object> handleBindException(BindException ex, WebRequest request) {
-        var details = ex.getBindingResult().getFieldErrors().stream()
-                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
-                .toList();
+    @Override
+protected ResponseEntity<Object> handleBindException(
+        BindException ex, 
+        HttpHeaders headers, 
+        HttpStatusCode status, 
+        WebRequest request) {
 
-        var status = HttpStatus.BAD_REQUEST;
-        var body = new ExceptionHandlerResponseDTO(
-                "Binding failed",
-                status.getReasonPhrase(),
-                status.value(),
-                BindException.class.getSimpleName(),
-                details,
-                request.getDescription(false)
-        );
+    var details = ex.getBindingResult().getFieldErrors().stream()
+            .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+            .toList();
 
-        return handleExceptionInternal(ex, body, new HttpHeaders(), status, request);
-    }
+    HttpStatus httpStatus = HttpStatus.valueOf(status.value());
+    var body = new ExceptionHandlerResponseDTO(
+            "Binding failed",
+            httpStatus.getReasonPhrase(),
+            httpStatus.value(),
+            BindException.class.getSimpleName(),
+            details,
+            request.getDescription(false)
+    );
+
+    return handleExceptionInternal(ex, body, headers, httpStatus, request);
+}
 
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
