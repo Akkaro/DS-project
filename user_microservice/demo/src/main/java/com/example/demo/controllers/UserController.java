@@ -62,4 +62,9 @@ public class UserController {
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/username/{username}")
+    public ResponseEntity<UserDetailsDTO> getUserByUsername(@PathVariable String username) {
+        return ResponseEntity.ok(userService.findUserByUsername(username));
+    }
 }

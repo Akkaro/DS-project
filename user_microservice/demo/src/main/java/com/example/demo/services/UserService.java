@@ -56,8 +56,7 @@ public class UserService {
                     "Username already exists",
                     HttpStatus.CONFLICT,
                     User.class.getSimpleName(),
-                    List.of("Username " + userDTO.getUsername() + " is already taken")
-            );
+                    List.of("Username " + userDTO.getUsername() + " is already taken"));
         }
 
         User user = UserBuilder.toEntity(userDTO);
@@ -85,8 +84,7 @@ public class UserService {
                     "Username already exists",
                     HttpStatus.CONFLICT,
                     User.class.getSimpleName(),
-                    List.of("Username " + userDTO.getUsername() + " is already taken")
-            );
+                    List.of("Username " + userDTO.getUsername() + " is already taken"));
         }
 
         user.setUsername(userDTO.getUsername());
@@ -118,5 +116,14 @@ public class UserService {
         return userList.stream()
                 .map(UserBuilder::toUserDTO)
                 .collect(Collectors.toList());
+    }
+
+    public UserDetailsDTO findUserByUsername(String username) {
+        Optional<User> userOptional = userRepository.findByUsername(username);
+        if (!userOptional.isPresent()) {
+            LOGGER.error("User with username {} was not found in db", username);
+            throw new ResourceNotFoundException(User.class.getSimpleName() + " with username: " + username);
+        }
+        return UserBuilder.toUserDetailsDTO(userOptional.get());
     }
 }
