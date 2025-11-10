@@ -3,7 +3,6 @@ package com.example.demo.handlers.exceptions.model;
 import java.util.Collection;
 import java.util.Date;
 
-// Copied from user-service
 public class ExceptionHandlerResponseDTO {
     private Date timestamp;
     private int status;
@@ -23,7 +22,6 @@ public class ExceptionHandlerResponseDTO {
         this.path = path;
     }
     
-    // Getters and Setters
     public Date getTimestamp() { return timestamp; }
     public void setTimestamp(Date timestamp) { this.timestamp = timestamp; }
     public int getStatus() { return status; }

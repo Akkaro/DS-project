@@ -8,7 +8,6 @@ accessLog:
   format: common
 
 # Enable the Traefik dashboard and API
-# The dashboard will be available on port 8080 (as defined in docker-compose.yml)
 api:
   dashboard: true
   insecure: true

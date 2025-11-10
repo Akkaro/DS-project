@@ -3,7 +3,7 @@ package com.example.demo.dtos;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-@Data // Auto-generates getters, setters, equals, hashCode, and toString
+@Data
 public class LoginRequestDTO {
 
     @NotBlank(message = "Username is required")

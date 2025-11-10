@@ -11,7 +11,7 @@ public class AgeValidator implements ConstraintValidator<AgeLimit, Integer> {
     private int min;
     @Override public void initialize(AgeLimit ann) { this.min = ann.value(); }
     @Override public boolean isValid(Integer age, ConstraintValidatorContext ctx) {
-        if (age == null) return true;               // let @NotNull enforce presence
+        if (age == null) return true;
         return age >= min;
     }
 }

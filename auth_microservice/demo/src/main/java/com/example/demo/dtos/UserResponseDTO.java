@@ -13,7 +13,7 @@ import java.util.UUID;
 public class UserResponseDTO {
     private UUID id;
     private String username;
-    private String password; // This will be the *hashed* password
+    private String password;
     private String name;
     private String role;
 }

@@ -56,7 +56,7 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:8000", "http://localhost:8081")); // Allow frontend and dashboard
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:8000", "http://localhost:8081"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control"));
         configuration.setAllowCredentials(true);
@@ -71,20 +71,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Enable CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                
-                // Disable CSRF (not needed for stateless JWT API)
                 .csrf(AbstractHttpConfigurer::disable)
-                
-                // Make the API stateless (no sessions)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                
-                // Define authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Allow all requests to /api/auth/** (login, register, refresh)
                         .requestMatchers("/api/auth/**").permitAll()
-                        // Any other request must be authenticated (though none should exist)
                         .anyRequest().authenticated()
                 );
 

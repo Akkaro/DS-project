@@ -16,6 +16,8 @@ demo/
 │   │   │   └── com
 │   │   │       └── example
 │   │   │           └── demo
+│   │   │               ├── config
+│   │   │               │   └── SecurityConfig.java
 │   │   │               ├── controllers
 │   │   │               │   └── DeviceController.java
 │   │   │               ├── dtos
@@ -42,33 +44,34 @@ demo/
 
 ## Features
 
-- **Full CRUD Operations**: Create, Read, Update, Delete devices
-- **Status Management**: Support for ACTIVE, INACTIVE, and MAINTENANCE statuses
-- **User-Device Association**: Assign/unassign devices to users
-- **Filtering**: Filter devices by user, status, or unassigned devices
-- **Validation**: Input validation for name, consumption, and other fields
-- **Duplicate Prevention**: Device name uniqueness validation
-- **Error Handling**: Comprehensive exception handling with detailed error messages
-- **Timestamps**: Automatic creation and update timestamps
+  - **Full CRUD Operations**: Create, Read, Update, Delete devices.
+  - **Status Management**: Support for ACTIVE, INACTIVE, and MAINTENANCE statuses.
+  - **User-Device Association**: Assign/unassign devices to users.
+  - **Filtering**: Filter devices by user, status, or unassigned devices.
+  - **Validation**: Input validation for name, consumption, and other fields.
+  - **Duplicate Prevention**: Device name uniqueness validation.
+  - **Error Handling**: Comprehensive exception handling with detailed error messages.
+  - **Timestamps**: Automatic creation and update timestamps.
 
 ## Device Entity
 
 A device has the following attributes:
-- `id` (UUID) - Automatically generated unique identifier
-- `name` (String) - Unique device name (min 3 characters, max 100)
-- `description` (String) - Device description (optional, max 500 characters)
-- `address` (String) - Physical location (optional, max 200 characters)
-- `maxConsumption` (Double) - Maximum energy consumption in watts (required, positive)
-- `userId` (UUID) - Associated user ID (optional, null if unassigned)
-- `status` (Enum) - ACTIVE, INACTIVE, or MAINTENANCE
-- `createdAt` (LocalDateTime) - Creation timestamp
-- `updatedAt` (LocalDateTime) - Last update timestamp
+
+  - `id` (UUID) - Automatically generated unique identifier.
+  - `name` (String) - Unique device name (min 3, max 100 characters).
+  - `description` (String) - Device description (optional, max 500 characters).
+  - `address` (String) - Physical location (optional, max 200 characters).
+  - `maxConsumption` (Double) - Maximum energy consumption in watts (required, positive).
+  - `userId` (UUID) - Associated user ID (optional, null if unassigned).
+  - `status` (Enum) - ACTIVE, INACTIVE, or MAINTENANCE.
+  - `createdAt` (LocalDateTime) - Creation timestamp.
+  - `updatedAt` (LocalDateTime) - Last update timestamp.
 
 ## Prerequisites
 
-- **Java JDK 25**
-- **PostgreSQL** server accessible from the app
-- **Postman** (optional) for testing the API
+  - **Java JDK 17**
+  - **PostgreSQL** server accessible from the app
+  - **Postman** (optional) for testing the API
 
 ## Database Setup (PostgreSQL)
 
@@ -78,7 +81,8 @@ Create the database before running the application:
 CREATE DATABASE device_db;
 ```
 
-Default connection values:
+Default connection values (for local development, from `device_microservice/README.md`):
+
 ```
 DB_IP=localhost
 DB_PORT=5433
@@ -95,12 +99,14 @@ All settings are in `src/main/resources/application.properties`. Override them v
 
 | Purpose | Property | Env var | Default |
 |---|---|---|---|
-| DB host | `database.ip` | `DB_IP` | `localhost` |
-| DB port | `database.port` | `DB_PORT` | `5433` |
+| DB host | `database.ip` | `DB_IP` | `device-db` |
+| DB port | `database.port` | `DB_PORT` | `5432` |
 | DB user | `database.user` | `DB_USER` | `postgres` |
 | DB password | `database.password` | `DB_PASSWORD` | `postgres` |
 | DB name | `database.name` | `DB_DBNAME` | `device_db` |
-| HTTP port | `server.port` | `PORT` | `8081` |
+| HTTP port | `server.port` | `PORT` | `8080` |
+
+*(Note: Defaults listed are from `application.properties` for containerized deployment. See "How to Run (Local)" for local settings.)*
 
 ## How to Run (Local)
 
@@ -126,7 +132,7 @@ The application will start on **http://localhost:8081**
 ### Devices Resource (`/devices`)
 
 | Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|--------------|----------|
+|---|---|---|---|---|
 | GET | `/devices` | List all devices | - | 200 OK, List of DeviceDTO |
 | GET | `/devices/{id}` | Get device by ID | - | 200 OK, DeviceDetailsDTO |
 | GET | `/devices/user/{userId}` | Get all devices for a user | - | 200 OK, List of DeviceDTO |
@@ -142,6 +148,7 @@ The application will start on **http://localhost:8081**
 ### Request/Response Examples
 
 **Create Device (POST /devices)**
+
 ```json
 {
   "name": "Smart Meter SM-001",
@@ -153,6 +160,7 @@ The application will start on **http://localhost:8081**
 ```
 
 **Device Response (GET /devices/{id})**
+
 ```json
 {
   "id": "123e4567-e89b-12d3-a456-426614174000",
@@ -167,27 +175,22 @@ The application will start on **http://localhost:8081**
 }
 ```
 
-**Assign Device to User (PUT /devices/{deviceId}/assign/{userId})**
-- No request body required
-- Returns 204 No Content on success
-
 ## Testing with Postman
 
-1. Import the collection file: `postman_collection.json`
-2. Set collection variables:
-   - `baseUrl` → `http://localhost:8081`
-   - `resource` → `devices`
-   - `userId` → (UUID of an existing user from User Microservice)
-3. Run requests in order (the collection includes tests that store `deviceId` after creation)
+1.  Import the collection file: `postman_collection.json`.
+2.  Set collection variables:
+      - `baseUrl` → `http://localhost:8081`
+      - `resource` → `devices`
+      - `userId` → (UUID of an existing user from User Microservice)
+3.  Run requests in order (the collection includes tests that store `deviceId` after creation).
 
 ## Validation Rules
 
-- **Name**: Required, 3-100 characters, must be unique
-- **Description**: Optional, max 500 characters
-- **Address**: Optional, max 200 characters
-- **Max Consumption**: Required, must be positive number
-- **Status**: Required, must be ACTIVE, INACTIVE, or MAINTENANCE
-- **UserId**: Optional (null for unassigned devices)
+  - **Name**: Required, 3-100 characters, must be unique.
+  - **Description**: Optional, max 500 characters.
+  - **Address**: Optional, max 200 characters.
+  - **Max Consumption**: Required, must be positive number.
+  - **Status**: Required, must be ACTIVE, INACTIVE, or MAINTENANCE.
 
 ## Error Responses
 
@@ -201,67 +204,22 @@ The API returns detailed error responses in the following format:
   "message": "MethodArgumentNotValidException",
   "resource": "Validation failed",
   "details": [
-    "name: Device name must be at least 3 characters"
+    "name: Device name must be between 3 and 100 characters"
   ],
   "path": "uri=/devices"
 }
 ```
 
-## Device Status Types
+## Security Notes
 
-- **ACTIVE**: Device is operational and actively monitoring
-- **INACTIVE**: Device is not currently in use
-- **MAINTENANCE**: Device is undergoing maintenance or repairs
+  - API endpoints are secured and require a valid JWT, with the exception of the health check.
+  - Device name uniqueness is enforced at the database level.
+  - All validation errors are returned with clear messages.
 
 ## Integration with Other Microservices
 
 This Device Microservice is designed to work with:
-- **User Microservice**: Provides user IDs for device assignment
-- **Authentication Microservice**: Handles login/logout and token generation
-- **API Gateway**: Routes requests and performs authorization
 
-## Usage Examples
-
-### 1. Create a device
-```bash
-curl -X POST http://localhost:8081/devices \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Smart Meter SM-001",
-    "description": "Main building meter",
-    "address": "Building A",
-    "maxConsumption": 5000.0,
-    "status": "ACTIVE"
-  }'
-```
-
-### 2. Assign device to user
-```bash
-curl -X PUT http://localhost:8081/devices/{deviceId}/assign/{userId}
-```
-
-### 3. Get all devices for a user
-```bash
-curl http://localhost:8081/devices/user/{userId}
-```
-
-### 4. Get unassigned devices
-```bash
-curl http://localhost:8081/devices/unassigned
-```
-
-## Next Steps
-
-To complete the Energy Management System:
-1. User Microservice (completed)
-2. Device Microservice (completed)
-3. Implement Authentication Microservice
-4. Set up API Gateway (Traefik or similar)
-5. Dockerize all services
-6. Create deployment diagram
-
----
-
-**Course**: Distributed Systems  
-**Assignment**: Request-Reply Communication  
-**Institution**: UTCN - Faculty of Automation and Computer Science
+  - **User Microservice**: Provides user IDs for device assignment.
+  - **Authentication Microservice**: Provides JWTs for securing the endpoints.
+  - **API Gateway**: Routes requests and performs authorization.

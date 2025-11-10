@@ -69,7 +69,6 @@ public class DeviceService {
     }
 
     public UUID insert(DeviceDetailsDTO deviceDTO) {
-        // Check if device name already exists
         if (deviceRepository.existsByName(deviceDTO.getName())) {
             LOGGER.error("Device name {} already exists", deviceDTO.getName());
             throw new CustomException(
@@ -95,7 +94,6 @@ public class DeviceService {
 
         Device device = deviceOptional.get();
 
-        // Check if device name is being changed and if it's already taken
         if (!device.getName().equals(deviceDTO.getName()) &&
                 deviceRepository.existsByName(deviceDTO.getName())) {
             LOGGER.error("Device name {} already exists", deviceDTO.getName());

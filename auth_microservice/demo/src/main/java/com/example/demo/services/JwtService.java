@@ -50,10 +50,9 @@ public class JwtService {
 
     public String generateToken(String username, UUID userId, String role) {
         
-        // Create the token and add claims all at once
         return Jwts.builder()
-                .subject(username) // Use .subject() for username
-                .claim("userId", userId) // Use .claim() for custom claims
+                .subject(username)
+                .claim("userId", userId)
                 .claim("role", role)
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))

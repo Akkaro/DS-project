@@ -62,7 +62,6 @@ public class DeviceDetailsDTO {
         this.updatedAt = updatedAt;
     }
 
-    // Getters and Setters
     public UUID getId() {
         return id;
     }

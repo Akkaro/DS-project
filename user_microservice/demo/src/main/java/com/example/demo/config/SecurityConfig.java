@@ -30,22 +30,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Disable CSRF (not needed for stateless JWT API)
                 .csrf(AbstractHttpConfigurer::disable)
-                
-                // Make the API stateless (no sessions)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                
-                // Define authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // *** CRITICAL ***
-                        // Allow the auth-service to call this endpoint to get user details
-                        .requestMatchers(HttpMethod.GET, "/users/username/**").permitAll() 
-                        // All other requests must be authenticated
+                        .requestMatchers(HttpMethod.GET, "/users/username/**").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated()
                 )
-                
-                // Add our custom JWT filter before the standard Spring filter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

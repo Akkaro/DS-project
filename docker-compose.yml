@@ -53,7 +53,7 @@ services:
       POSTGRES_PASSWORD: root
       POSTGRES_DB: auth_db
     ports:
-      - "5435:5432" # New port to avoid host conflict
+      - "5435:5432"
     volumes:
       - auth-db-data:/var/lib/postgresql/data
     networks:
@@ -86,7 +86,7 @@ services:
     networks:
       - ems-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://auth-service:8082/api/auth/login"]
+      test: ["CMD", "curl", "-f", "http://user-service:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -111,7 +111,7 @@ services:
     networks:
       - ems-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://auth-service:8082/api/auth/login"]
+      test: ["CMD", "curl", "-f", "http://device-service:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -129,8 +129,8 @@ services:
       - DB_DBNAME=auth_db
       - DB_USER=postgres
       - DB_PASSWORD=root
-      - PORT=8082 # Runs on port 8082
-      - app_user-service_url=http://user-service:8080 # Tells auth-service how to find user-service
+      - PORT=8082
+      - app_user-service_url=http://user-service:8080
     depends_on:
       auth-db:
         condition: service_healthy
@@ -145,7 +145,7 @@ services:
     container_name: frontend
     restart: always
     volumes:
-      - ./frontend:/usr/share/nginx/html:ro  # <-- This is the new, cleaner line
+      - ./frontend:/usr/share/nginx/html:ro
     networks:
       - ems-network
 
@@ -157,8 +157,8 @@ services:
     container_name: traefik
     restart: always
     ports:
-      - "8000:80"      # HTTP entrypoint
-      - "8081:8080"  # Optional dashboard
+      - "8000:80"
+      - "8081:8080"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./reverse_proxy/traefik.yml:/etc/traefik/traefik.yml:ro"

@@ -49,7 +49,6 @@ public class UserService {
     }
 
     public UUID insert(UserDetailsDTO userDTO) {
-        // Check if username already exists
         if (userRepository.existsByUsername(userDTO.getUsername())) {
             LOGGER.error("Username {} already exists", userDTO.getUsername());
             throw new CustomException(
@@ -60,7 +59,6 @@ public class UserService {
         }
 
         User user = UserBuilder.toEntity(userDTO);
-        // Encode password before saving
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user = userRepository.save(user);
         LOGGER.debug("User with id {} was inserted in db", user.getId());
@@ -76,7 +74,6 @@ public class UserService {
 
         User user = userOptional.get();
 
-        // Check if username is being changed and if it's already taken
         if (!user.getUsername().equals(userDTO.getUsername()) &&
                 userRepository.existsByUsername(userDTO.getUsername())) {
             LOGGER.error("Username {} already exists", userDTO.getUsername());
@@ -92,7 +89,6 @@ public class UserService {
         user.setName(userDTO.getName());
         user.setRole(userDTO.getRole());
 
-        // Only update password if provided
         if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
             user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         }

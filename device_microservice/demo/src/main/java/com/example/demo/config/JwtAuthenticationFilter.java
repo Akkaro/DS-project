@@ -40,10 +40,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
-            return; // Not a JWT request, pass to next filter
+            return;
         }
 
-        jwt = authHeader.substring(7); // "Bearer ".length()
+        jwt = authHeader.substring(7);
 
         try {
             if (jwtService.isTokenValid(jwt)) {
@@ -51,12 +51,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 username = claims.getSubject();
                 String role = claims.get("role", String.class);
                 
-                // We trust the token's claims, so we create authorities directly
                 List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
 
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         username,
-                        null, // No credentials
+                        null,
                         authorities
                 );
                 
@@ -64,7 +63,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         } catch (Exception e) {
-            // Token is invalid, just clear the context
             SecurityContextHolder.clearContext();
         }
 

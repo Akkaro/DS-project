@@ -17,7 +17,7 @@ import java.lang.annotation.*;
 @Documented
 @Constraint(validatedBy = AgeValidator.class)
 public @interface AgeLimit {
-    int value() default 18;                        // min age
+    int value() default 18;
     String message() default "the age must be at least {value}";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};

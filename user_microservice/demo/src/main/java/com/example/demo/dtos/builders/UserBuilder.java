@@ -20,7 +20,6 @@ public class UserBuilder {
     }
 
     public static UserDetailsDTO toUserDetailsDTO(User user) {
-        // Note: We don't include the actual password in the DTO for security
         return new UserDetailsDTO(
                 user.getId(),
                 user.getUsername(),
@@ -34,7 +33,7 @@ public class UserBuilder {
     public static User toEntity(UserDetailsDTO userDetailsDTO) {
         return new User(
                 userDetailsDTO.getUsername(),
-                userDetailsDTO.getPassword(), // This will be encoded in the service layer
+                userDetailsDTO.getPassword(),
                 userDetailsDTO.getEmail(),
                 userDetailsDTO.getName(),
                 userDetailsDTO.getRole()

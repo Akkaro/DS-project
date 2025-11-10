@@ -62,14 +62,14 @@ http:
     auth-service:
       loadBalancer:
         servers:
-          - url: "http://auth-service:8082" # Points to new service on its port
+          - url: "http://auth-service:8082"
 
     user-service:
       loadBalancer:
         servers:
           - url: "http://user-service:8080"
-        healthCheck:
-          path: /users
+        healthcheck:
+          path: /actuator/health
           interval: "30s"
           timeout: "5s"
 
@@ -77,7 +77,7 @@ http:
       loadBalancer:
         servers:
           - url: "http://device-service:8080"
-        healthCheck:
-          path: /devices
+        healthcheck:
+          path: /actuator/health
           interval: "30s"
           timeout: "5s"

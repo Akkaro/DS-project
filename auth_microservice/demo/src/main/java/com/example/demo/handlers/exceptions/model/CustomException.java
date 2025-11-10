@@ -4,7 +4,6 @@ import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
-// Copied from user-service
 public class CustomException extends RuntimeException {
     private final String resource;
     private final HttpStatus status ;

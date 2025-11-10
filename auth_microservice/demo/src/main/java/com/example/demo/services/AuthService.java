@@ -40,7 +40,6 @@ public class AuthService {
      * Registers a new user by calling the user-service.
      */
     public Mono<Void> register(RegisterRequestDTO registerRequest) {
-        // We just pass the request to the user-service client
         return userServiceClient.registerUser(registerRequest);
     }
 
@@ -57,7 +56,6 @@ public class AuthService {
                 .flatMap(user -> {
                     log.debug("Found user: {}", user.getUsername());
                     
-                    // 2. Validate password
                     if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                         log.warn("Invalid password for user: {}", loginRequest.getUsername());
                         return Mono.error(new CustomException(
@@ -67,7 +65,6 @@ public class AuthService {
                     
                     log.debug("Password validated for user: {}", user.getUsername());
                     
-                    // 3. Generate tokens
                     String accessToken = jwtService.generateToken(user.getUsername(), user.getId(), user.getRole());
                     RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId(), user.getUsername());
                     
@@ -80,17 +77,15 @@ public class AuthService {
      */
     public Mono<AuthResponseDTO> refreshToken(String requestRefreshToken) {
         return Mono.fromCallable(() -> {
-            // Find and verify the refresh token in the database
             RefreshToken refreshToken = refreshTokenService.findByToken(requestRefreshToken)
                     .orElseThrow(() -> new TokenRefreshException(requestRefreshToken, "Refresh token not found in DB"));
 
             refreshTokenService.verifyExpiration(refreshToken);
 
-            // If valid, generate a new access token
             String accessToken = jwtService.generateToken(
                     refreshToken.getUsername(),
                     refreshToken.getUserId(),
-                    "ROLE_UNKNOWN" // We lose the role info, this is a tradeoff. Or we could re-fetch user.
+                    "ROLE_UNKNOWN"
             );
 
             return new AuthResponseDTO(accessToken, requestRefreshToken);

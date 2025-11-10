@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-// This is almost identical to your UserDetailsDTO
 @Data
 public class RegisterRequestDTO {
 
@@ -25,5 +24,5 @@ public class RegisterRequestDTO {
     private String name;
 
     @NotNull(message = "Role is required")
-    private String role; // Using String for flexibility (e.g., "CLIENT", "ADMIN")
+    private String role;
 }

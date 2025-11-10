@@ -9,7 +9,6 @@ WORKDIR /demo
 COPY pom.xml .
 COPY src ./src
 
-# This will fetch dependencies as part of the build (more reliable than go-offline)
 RUN mvn -B clean install -DskipTests
 
 

@@ -17,6 +17,7 @@ demo/
 │   │   │       └── example
 │   │   │           └── demo
 │   │   │               ├── config
+│   │   │               │   ├── JwtAuthenticationFilter.java
 │   │   │               │   └── SecurityConfig.java
 │   │   │               ├── controllers
 │   │   │               │   └── UserController.java
@@ -34,6 +35,7 @@ demo/
 │   │   │               ├── repositories
 │   │   │               │   └── UserRepository.java
 │   │   │               ├── services
+│   │   │               │   ├── JwtService.java
 │   │   │               │   └── UserService.java
 │   │   │               └── DemoApplication.java
 │   │   └── resources
@@ -44,28 +46,29 @@ demo/
 
 ## Features
 
-- **Full CRUD Operations**: Create, Read, Update, Delete users
-- **Role Management**: Support for ADMIN and CLIENT roles
-- **Password Security**: BCrypt password encryption
-- **Validation**: Input validation for username, password, email, and other fields
-- **Duplicate Prevention**: Username uniqueness validation
-- **Error Handling**: Comprehensive exception handling with detailed error messages
+  - **Full CRUD Operations**: Create, Read, Update, Delete users.
+  - **Role Management**: Support for ADMIN and CLIENT roles.
+  - **Password Security**: BCrypt password encryption.
+  - **Validation**: Input validation for username, password, email, and other fields.
+  - **Duplicate Prevention**: Username uniqueness validation.
+  - **Error Handling**: Comprehensive exception handling with detailed error messages.
 
 ## User Entity
 
 A user has the following attributes:
-- `id` (UUID) - Automatically generated unique identifier
-- `username` (String) - Unique username (min 3 characters)
-- `password` (String) - Encrypted password (min 6 characters)
-- `email` (String) - Email address (optional, validated format)
-- `name` (String) - Full name of the user
-- `role` (Enum) - Either ADMIN or CLIENT
+
+  - `id` (UUID) - Automatically generated unique identifier.
+  - `username` (String) - Unique username (min 3 characters).
+  - `password` (String) - Encrypted password (min 6 characters).
+  - `email` (String) - Email address (optional, validated format).
+  - `name` (String) - Full name of the user.
+  - `role` (Enum) - Either ADMIN or CLIENT.
 
 ## Prerequisites
 
-- **Java JDK 25**
-- **PostgreSQL** server accessible from the app
-- **Postman** (optional) for testing the API
+  - **Java JDK 17**
+  - **PostgreSQL** server accessible from the app
+  - **Postman** (optional) for testing the API
 
 ## Database Setup (PostgreSQL)
 
@@ -75,7 +78,8 @@ Create the database before running the application:
 CREATE DATABASE user_db;
 ```
 
-Default connection values:
+Default connection values (for local development, from `user_microservice/README.md`):
+
 ```
 DB_IP=localhost
 DB_PORT=5432
@@ -92,12 +96,13 @@ All settings are in `src/main/resources/application.properties`. Override them v
 
 | Purpose | Property | Env var | Default |
 |---|---|---|---|
-| DB host | `database.ip` | `DB_IP` | `localhost` |
+| DB host | `database.ip` | `DB_IP` | `user-db` |
 | DB port | `database.port` | `DB_PORT` | `5432` |
 | DB user | `database.user` | `DB_USER` | `postgres` |
 | DB password | `database.password` | `DB_PASSWORD` | `postgres` |
 | DB name | `database.name` | `DB_DBNAME` | `user_db` |
 | HTTP port | `server.port` | `PORT` | `8080` |
+| JWT Secret | `app.jwt.secret` | `app.jwt.secret` | `ThisIsAFallbackSecretKeyForDevOnlyDoNotUseInProd` |
 
 ## How to Run (Local)
 
@@ -123,10 +128,11 @@ The application will start on **http://localhost:8080**
 ### Users Resource (`/users`)
 
 | Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|--------------|----------|
+|---|---|---|---|---|
 | GET | `/users` | List all users | - | 200 OK, List of UserDTO |
 | GET | `/users/{id}` | Get user by ID | - | 200 OK, UserDetailsDTO |
 | GET | `/users/role/{role}` | Get users by role (ADMIN/CLIENT) | - | 200 OK, List of UserDTO |
+| GET | `/users/username/{username}` | Get user by username (for auth service) | - | 200 OK, UserDetailsDTO |
 | POST | `/users` | Create new user | UserDetailsDTO | 201 Created, Location header |
 | PUT | `/users/{id}` | Update user | UserDetailsDTO | 204 No Content |
 | DELETE | `/users/{id}` | Delete user | - | 204 No Content |
@@ -134,6 +140,7 @@ The application will start on **http://localhost:8080**
 ### Request/Response Examples
 
 **Create User (POST /users)**
+
 ```json
 {
   "username": "johndoe",
@@ -145,6 +152,7 @@ The application will start on **http://localhost:8080**
 ```
 
 **User Response (GET /users/{id})**
+
 ```json
 {
   "id": "123e4567-e89b-12d3-a456-426614174000",
@@ -156,23 +164,23 @@ The application will start on **http://localhost:8080**
 }
 ```
 
-**Note**: Password is never returned in GET responses for security reasons.
+**Note**: Password is intentionally set to `null` in the `GET /users/{id}` endpoint response for security.
 
 ## Testing with Postman
 
-1. Import the collection file: `postman_collection.json`
-2. Verify collection variables:
-   - `baseUrl` → `http://localhost:8080`
-   - `resource` → `users`
-3. Run requests in order (the collection includes tests that store `userId` after creation)
+1.  Import the collection file: `postman_collection.json`.
+2.  Verify collection variables:
+      - `baseUrl` → `http://localhost:8080`
+      - `resource` → `users`
+3.  Run requests in order (the collection includes tests that store `userId` after creation).
 
 ## Validation Rules
 
-- **Username**: Required, minimum 3 characters, must be unique
-- **Password**: Required, minimum 6 characters (encrypted with BCrypt)
-- **Email**: Must be valid email format (if provided)
-- **Name**: Required, cannot be blank
-- **Role**: Required, must be either ADMIN or CLIENT
+  - **Username**: Required, minimum 3 characters, must be unique.
+  - **Password**: Required, minimum 6 characters.
+  - **Email**: Must be valid email format (if provided).
+  - **Name**: Required, cannot be blank.
+  - **Role**: Required, must be either ADMIN or CLIENT.
 
 ## Error Responses
 
@@ -194,29 +202,15 @@ The API returns detailed error responses in the following format:
 
 ## Security Notes
 
-- Passwords are encrypted using BCrypt before storage
-- Passwords are never returned in API responses
-- Username uniqueness is enforced at the database level
-- All validation errors are returned with clear messages
+  - Passwords are encrypted using BCrypt before storage.
+  - Passwords are never returned in `GET /users/{id}` API responses.
+  - Username uniqueness is enforced at the database level.
+  - Most endpoints are secured and require a JWT; `GET /users/username/{username}` and `/actuator/health` are permitted for inter-service communication and health checks.
 
 ## Integration with Other Microservices
 
 This User Microservice is designed to work with:
-- **Authentication Microservice**: Handles login/logout and token generation
-- **Device Microservice**: Manages device-to-user associations
-- **API Gateway**: Routes requests and performs authorization
 
-## Next Steps
-
-To complete the Energy Management System:
-1. Implement Device Microservice
-2. Implement Authentication Microservice
-3. Set up API Gateway (Traefik or similar)
-4. Dockerize all services
-5. Create deployment diagram
-
----
-
-**Course**: Distributed Systems  
-**Assignment**: Request-Reply Communication  
-**Institution**: UTCN - Faculty of Automation and Computer Science
+  - **Authentication Microservice**: Handles login/logout and token generation.
+  - **Device Microservice**: Manages device-to-user associations.
+  - **API Gateway**: Routes requests and performs authorization.

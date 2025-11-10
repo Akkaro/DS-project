@@ -35,4 +35,4 @@ public class RefreshToken {
     @Column(nullable = false)
     private String username;
 
-} // <-- This closing brace was missing
+}
