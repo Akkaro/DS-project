@@ -1,4 +1,4 @@
-package main.java.com.example.demo.dtos;
+package com.example.demo.dtos;
 
 import lombok.Data;
 

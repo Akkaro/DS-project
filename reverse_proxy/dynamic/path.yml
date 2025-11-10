@@ -15,8 +15,6 @@ http:
       rule: "Host(`localhost`) && PathPrefix(`/api/auth`)"
       entryPoints:
         - web
-      middlewares:
-        - strip-api-prefix # Strips /api, so request becomes /auth/**
       service: auth-service
 
     user-service:
@@ -24,7 +22,6 @@ http:
       entryPoints:
         - web
       middlewares:
-        - auth-basic
         - strip-api-prefix
       service: user-service
 
@@ -34,7 +31,6 @@ http:
       entryPoints:
         - web
       middlewares:
-        - auth-basic
         - strip-api-prefix
       service: device-service
 
@@ -43,10 +39,10 @@ http:
   # ==========================================
   middlewares:
     # Basic authentication for API endpoints
-    auth-basic:
-      basicAuth:
-        users:
-          - "user:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"  # password = "test"
+    # auth-basic:
+    #   basicAuth:
+    #     users:
+    #       - "user:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"  # password = "test"
 
     # Remove /api/users prefix before forwarding to microservice
     strip-api-prefix:
@@ -67,10 +63,6 @@ http:
       loadBalancer:
         servers:
           - url: "http://auth-service:8082" # Points to new service on its port
-        healthCheck:
-          path: /api/auth/login # Use the login endpoint as a basic health check
-          interval: "30s"
-          timeout: "5s"
 
     user-service:
       loadBalancer:

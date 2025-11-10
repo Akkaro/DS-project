@@ -1,4 +1,4 @@
-package main.java.com.example.demo.controllers;
+package com.example.demo.controllers;
 
 import com.example.demo.dtos.AuthResponseDTO;
 import com.example.demo.dtos.LoginRequestDTO;

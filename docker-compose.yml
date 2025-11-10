@@ -86,7 +86,7 @@ services:
     networks:
       - ems-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/users"]
+      test: ["CMD", "curl", "-f", "http://auth-service:8082/api/auth/login"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -111,7 +111,7 @@ services:
     networks:
       - ems-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/devices"]
+      test: ["CMD", "curl", "-f", "http://auth-service:8082/api/auth/login"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -133,8 +133,6 @@ services:
       - app_user-service_url=http://user-service:8080 # Tells auth-service how to find user-service
     depends_on:
       auth-db:
-        condition: service_healthy
-      user-service: # Make sure user-service is healthy before starting
         condition: service_healthy
     networks:
       - ems-network

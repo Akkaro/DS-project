@@ -1,4 +1,4 @@
-package main.java.com.example.demo.services;
+package com.example.demo.services;
 
 import com.example.demo.dtos.RegisterRequestDTO;
 import com.example.demo.dtos.UserResponseDTO;

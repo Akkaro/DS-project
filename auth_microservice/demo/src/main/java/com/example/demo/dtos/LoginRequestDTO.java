@@ -1,4 +1,4 @@
-package main.java.com.example.demo.dtos;
+package com.example.demo.dtos;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;

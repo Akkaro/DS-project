@@ -7,8 +7,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -23,29 +21,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Disable CSRF (not needed for stateless JWT API)
                 .csrf(AbstractHttpConfigurer::disable)
-                
-                // Make the API stateless (no sessions)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                
-                // Define authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // *** CRITICAL ***
-                        // Allow the auth-service to call this endpoint to get user details
-                        .requestMatchers(HttpMethod.GET, "/users/username/**").permitAll() 
-                        // All other requests must be authenticated
-                        .anyRequest().authenticated()
-                )
-                
-                // Add our custom JWT filter before the standard Spring filter
+                            // Secure ALL other endpoints
+                            .anyRequest().authenticated() 
+                    )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

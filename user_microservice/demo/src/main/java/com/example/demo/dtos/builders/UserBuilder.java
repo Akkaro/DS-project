@@ -24,7 +24,7 @@ public class UserBuilder {
         return new UserDetailsDTO(
                 user.getId(),
                 user.getUsername(),
-                null, // Password is not returned
+                user.getPassword(),
                 user.getEmail(),
                 user.getName(),
                 user.getRole()

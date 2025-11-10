@@ -48,7 +48,9 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<UserDetailsDTO> getUser(@PathVariable UUID id) {
-        return ResponseEntity.ok(userService.findUserById(id));
+        UserDetailsDTO user = userService.findUserById(id);
+        user.setPassword(null); // Manually redact the password for this public-facing endpoint
+        return ResponseEntity.ok(user);
     }
 
     @PutMapping("/{id}")

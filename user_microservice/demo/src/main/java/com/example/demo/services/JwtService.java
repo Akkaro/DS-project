@@ -23,9 +23,6 @@ public class JwtService {
     @Value("${app.jwt.secret}")
     private String jwtSecret;
 
-    @Value("${app.jwt.expiration-ms}")
-    private long jwtExpirationMs;
-
     private SecretKey getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -34,13 +31,8 @@ public class JwtService {
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
-
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
-    }
-
-    private Claims extractAllClaims(String token) {
+    
+    public Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
@@ -48,23 +40,14 @@ public class JwtService {
                 .getPayload();
     }
 
-    public String generateToken(String username, UUID userId, String role) {
-        
-        // Create the token and add claims all at once
-        return Jwts.builder()
-                .subject(username) // Use .subject() for username
-                .claim("userId", userId) // Use .claim() for custom claims
-                .claim("role", role)
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
     }
 
-    public boolean isTokenValid(String token, String username) {
+    public boolean isTokenValid(String token) {
         try {
-            final String tokenUsername = extractUsername(token);
-            return (tokenUsername.equals(username)) && !isTokenExpired(token);
+            return !isTokenExpired(token);
         } catch (Exception e) {
             log.warn("JWT validation error: {}", e.getMessage());
             return false;

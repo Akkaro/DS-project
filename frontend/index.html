@@ -186,15 +186,19 @@
         document.addEventListener('DOMContentLoaded', () => {
             
             // --- API & Auth Configuration ---
-            // Your Traefik path.yml set up Basic Auth
-            const API_USERNAME = 'user';
-            const API_PASSWORD = 'test';
-            // Create the Basic Auth header value
-            const AUTH_HEADER = 'Basic ' + btoa(API_USERNAME + ':' + API_PASSWORD);
-            const API_HEADERS = {
-                'Authorization': AUTH_HEADER,
-                'Content-Type': 'application/json'
-            };
+            let accessToken = null; // We will store the JWT here
+            const API_BASE = '/api';
+
+            // This function builds the auth headers dynamically
+            function getApiHeaders() {
+                if (!accessToken) {
+                    return { 'Content-Type': 'application/json' };
+                }
+                return {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                };
+            }
 
             // --- Element Selectors ---
             const userForm = document.getElementById('form-create-user');
@@ -205,23 +209,49 @@
             const assignDeviceSelect = document.getElementById('assign-device-id');
             const assignUserSelect = document.getElementById('assign-user-id');
 
-            // Modal elements
+            // --- NEW: Login Modal Elements ---
+            // We re-use the existing modal for login
             const modalBackdrop = document.getElementById('modal-backdrop');
             const modalContent = document.getElementById('modal-content');
             const modalTitle = document.getElementById('modal-title');
             const modalMessage = document.getElementById('modal-message');
             const modalCloseBtn = document.getElementById('modal-close-btn');
 
-            // --- Modal Helper ---
+            // --- NEW: Login Form (Injected into Modal) ---
+            const loginFormHtml = `
+                <form id="form-login">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="login-username" class="block text-sm font-medium text-slate-600">Username</label>
+                            <input type="text" id="login-username" name="username" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="login-password" class="block text-sm font-medium text-slate-600">Password</label>
+                            <input type="password" id="login-password" name="password" required class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <button type="submit" id="login-submit-btn" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-200">
+                            Login
+                        </button>
+                    </div>
+                </form>
+            `;
+
+            // --- Modal Helper Functions ---
             function showModal(title, message, isError = false) {
                 modalTitle.textContent = title;
-                modalMessage.textContent = message;
+                modalMessage.innerHTML = message; // Use innerHTML to allow form
                 modalContent.classList.toggle('border-l-4', isError);
                 modalContent.classList.toggle('border-red-500', isError);
                 modalContent.classList.toggle('border-green-500', !isError);
 
                 modalBackdrop.classList.remove('opacity-0', 'pointer-events-none');
                 modalContent.classList.remove('scale-95', 'opacity-0');
+
+                // If it's a login modal, attach the event listener
+                const loginForm = document.getElementById('form-login');
+                if (loginForm) {
+                    loginForm.addEventListener('submit', handleLogin);
+                }
             }
 
             function hideModal() {
@@ -233,39 +263,89 @@
                 if (e.target === modalBackdrop) hideModal();
             });
 
+            // --- NEW: Login Logic ---
+            function showLoginModal(errorMessage = 'Please log in to continue.') {
+                modalCloseBtn.style.display = 'none'; // Hide close button on login
+                showModal('Login Required', errorMessage + loginFormHtml, true);
+            }
 
-            // --- API Fetch Functions ---
+            async function handleLogin(e) {
+                e.preventDefault();
+                const username = document.getElementById('login-username').value;
+                const password = document.getElementById('login-password').value;
+                const loginButton = document.getElementById('login-submit-btn');
+                loginButton.disabled = true;
+                loginButton.textContent = 'Logging in...';
 
-            // Fetch all users from the user-service
+                try {
+                    const response = await fetch(`${API_BASE}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Invalid username or password.');
+                    }
+
+                    const data = await response.json();
+                    accessToken = data.accessToken;
+                    // You can also save the refreshToken to localStorage for persistence
+                    // localStorage.setItem('refreshToken', data.refreshToken);
+
+                    modalCloseBtn.style.display = 'block'; // Show close button again
+                    hideModal();
+                    loadInitialData(); // Load data now that we are logged in
+                } catch (error) {
+                    showModal('Login Failed', error.message + loginFormHtml, true);
+                } finally {
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Login';
+                }
+            }
+            
+            // --- API Fetch Wrapper (Handles Auth) ---
+            async function fetchApi(url, options = {}) {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: getApiHeaders()
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    // Token is invalid or expired
+                    accessToken = null;
+                    showLoginModal('Your session has expired. Please log in again.');
+                    throw new Error('Unauthorized');
+                }
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || `Network error: ${response.statusText}`);
+                }
+                
+                // Handle 201 (Created) or 204 (No Content) which have no JSON body
+                if (response.status === 201 || response.status === 204) {
+                    return null;
+                }
+
+                return await response.json();
+            }
+
+
+            // --- API Fetch Functions (Now use wrapper) ---
+
             async function fetchUsers() {
-                try {
-                    const response = await fetch('/api/users', { headers: { 'Authorization': AUTH_HEADER } });
-                    if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
-                    return await response.json();
-                } catch (error) {
-                    showModal('Error Loading Users', error.message, true);
-                    return [];
-                }
+                return await fetchApi(`${API_BASE}/users`);
             }
 
-            // Fetch all devices from the device-service
             async function fetchDevices() {
-                try {
-                    const response = await fetch('/api/devices', { headers: { 'Authorization': AUTH_HEADER } });
-                    if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
-                    return await response.json();
-                } catch (error) {
-                    showModal('Error Loading Devices', error.message, true);
-                    return [];
-                }
+                return await fetchApi(`${API_BASE}/devices`);
             }
 
-            // --- Render Functions ---
-
-            // Render the list of users
+            // --- Render Functions (Unchanged) ---
             function renderUserList(users) {
-                userList.innerHTML = ''; // Clear list
-                if (users.length === 0) {
+                userList.innerHTML = '';
+                if (!users || users.length === 0) {
                     userList.innerHTML = '<li class="text-slate-500">No users found.</li>';
                     return;
                 }
@@ -283,10 +363,9 @@
                 });
             }
 
-            // Render the list of devices
             function renderDeviceList(devices, usersMap) {
-                deviceList.innerHTML = ''; // Clear list
-                if (devices.length === 0) {
+                deviceList.innerHTML = '';
+                if (!devices || devices.length === 0) {
                     deviceList.innerHTML = '<li class="text-slate-500">No devices found.</li>';
                     return;
                 }
@@ -306,9 +385,7 @@
                 });
             }
 
-            // Populate the dropdowns in the "Assign" form
             function populateDropdowns(users, devices) {
-                // Populate user dropdown
                 assignUserSelect.innerHTML = '<option value="">Select a user</option>';
                 users.forEach(user => {
                     const option = document.createElement('option');
@@ -317,7 +394,6 @@
                     assignUserSelect.appendChild(option);
                 });
 
-                // Populate device dropdown
                 assignDeviceSelect.innerHTML = '<option value="">Select a device</option>';
                 devices.forEach(device => {
                     const option = document.createElement('option');
@@ -331,73 +407,66 @@
             let usersMap = new Map();
             
             async function loadInitialData() {
-                const users = await fetchUsers();
-                const devices = await fetchDevices();
+                if (!accessToken) {
+                    showLoginModal();
+                    return;
+                }
+                try {
+                    const users = await fetchUsers();
+                    const devices = await fetchDevices();
 
-                // Create a map of UserID -> UserName for easy lookup
-                usersMap = new Map(users.map(u => [u.id, u.name]));
+                    usersMap = new Map(users.map(u => [u.id, u.name]));
 
-                renderUserList(users);
-                renderDeviceList(devices, usersMap);
-                populateDropdowns(users, devices);
+                    renderUserList(users);
+                    renderDeviceList(devices, usersMap);
+                    populateDropdowns(users, devices);
+                } catch (error) {
+                    console.error('Failed to load initial data:', error);
+                    // The fetchApi wrapper will handle showing the login modal
+                }
             }
 
-            // --- Event Listeners ---
+            // --- Event Listeners (Now use fetchApi) ---
 
-            // Handle Create User form submission
             userForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const formData = new FormData(userForm);
                 const data = Object.fromEntries(formData.entries());
 
                 try {
-                    const response = await fetch('/api/users', {
+                    await fetchApi(`${API_BASE}/users`, {
                         method: 'POST',
-                        headers: API_HEADERS,
                         body: JSON.stringify(data)
                     });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.details ? errorData.details.join(', ') : 'Failed to create user');
-                    }
                     
                     showModal('Success', 'User created successfully!');
                     userForm.reset();
-                    loadInitialData(); // Refresh all data
+                    loadInitialData();
                 } catch (error) {
                     showModal('Error', error.message, true);
                 }
             });
 
-            // Handle Create Device form submission
             deviceForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const formData = new FormData(deviceForm);
                 const data = Object.fromEntries(formData.entries());
-                data.maxConsumption = parseFloat(data.maxConsumption); // Ensure number
+                data.maxConsumption = parseFloat(data.maxConsumption);
 
                 try {
-                    const response = await fetch('/api/devices', {
+                    await fetchApi(`${API_BASE}/devices`, {
                         method: 'POST',
-                        headers: API_HEADERS,
                         body: JSON.stringify(data)
                     });
                     
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.details ? errorData.details.join(', ') : 'Failed to create device');
-                    }
-
                     showModal('Success', 'Device created successfully!');
                     deviceForm.reset();
-                    loadInitialData(); // Refresh all data
+                    loadInitialData();
                 } catch (error) {
                     showModal('Error', error.message, true);
                 }
             });
 
-            // Handle Assign Device form submission
             assignForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const deviceId = assignDeviceSelect.value;
@@ -409,68 +478,48 @@
                 }
 
                 try {
-                    const response = await fetch(`/api/devices/${deviceId}/assign/${userId}`, {
-                        method: 'PUT',
-                        headers: API_HEADERS
+                    await fetchApi(`${API_BASE}/devices/${deviceId}/assign/${userId}`, {
+                        method: 'PUT'
                     });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to assign device. Is it already assigned?');
-                    }
                     
                     showModal('Success', 'Device assigned successfully!');
                     assignForm.reset();
-                    // Just refresh devices, no need to re-fetch users
                     const devices = await fetchDevices();
                     renderDeviceList(devices, usersMap);
-                    populateDropdowns(await fetchUsers(), devices); // Refresh dropdowns too
+                    populateDropdowns(await fetchUsers(), devices);
                 } catch (error) {
                     showModal('Error', error.message, true);
                 }
             });
 
-            // Handle Delete User button clicks (using event delegation)
             userList.addEventListener('click', async (e) => {
                 if (e.target.classList.contains('delete-user-btn')) {
                     const userId = e.target.dataset.id;
-                    if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) {
-                        return;
-                    }
+                    if (!confirm('Are you sure you want to delete this user?')) return;
 
                     try {
-                        const response = await fetch(`/api/users/${userId}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': AUTH_HEADER }
+                        await fetchApi(`${API_BASE}/users/${userId}`, {
+                            method: 'DELETE'
                         });
-
-                        if (!response.ok) throw new Error('Failed to delete user. They may have assigned devices.');
-
                         showModal('Success', 'User deleted successfully.');
-                        loadInitialData(); // Refresh all data
+                        loadInitialData();
                     } catch (error) {
                         showModal('Error', error.message, true);
                     }
                 }
             });
 
-            // Handle Delete Device button clicks (using event delegation)
             deviceList.addEventListener('click', async (e) => {
                 if (e.target.classList.contains('delete-device-btn')) {
                     const deviceId = e.target.dataset.id;
-                    if (!confirm('Are you sure you want to delete this device? This cannot be undone.')) {
-                        return;
-                    }
+                    if (!confirm('Are you sure you want to delete this device?')) return;
 
                     try {
-                        const response = await fetch(`/api/devices/${deviceId}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': AUTH_HEADER }
+                        await fetchApi(`${API_BASE}/devices/${deviceId}`, {
+                            method: 'DELETE'
                         });
-
-                        if (!response.ok) throw new Error('Failed to delete device.');
-                        
                         showModal('Success', 'Device deleted successfully.');
-                        loadInitialData(); // Refresh all data
+                        loadInitialData();
                     } catch (error) {
                         showModal('Error', error.message, true);
                     }

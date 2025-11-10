@@ -1,4 +1,4 @@
-package main.java.com.example.demo.services;
+package com.example.demo.services;
 
 import com.example.demo.entities.RefreshToken;
 import com.example.demo.handlers.exceptions.model.TokenRefreshException;
