@@ -27,12 +27,17 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                            .requestMatchers("/v3/api-docs/**").permitAll()
-                            .requestMatchers("/swagger-ui/**").permitAll()
-                            .requestMatchers("/swagger-ui.html").permitAll()
-                            .requestMatchers("/actuator/health").permitAll()
-                            .anyRequest().authenticated() 
-                    )
+                        // Add prefixed Swagger paths BEFORE anyRequest()
+                        .requestMatchers("/devices/swagger-ui.html").permitAll()
+                        .requestMatchers("/devices/swagger-ui/**").permitAll()
+                        .requestMatchers("/devices/v3/api-docs/**").permitAll()
+
+                        // Original rules (can be kept for safety)
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
