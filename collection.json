@@ -1,0 +1,897 @@
+{
+	"info": {
+		"_postman_id": "f5a0a3b1-3e0e-4b8c-b69c-2f9a2d3c9f5e",
+		"name": "Energy Management System API (Secured)",
+		"description": "A comprehensive Postman collection for testing the full Energy Management System stack, including Auth, User, and Device microservices via the Traefik API Gateway. This version assumes a pre-existing ADMIN user and tests all security rules.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "0. Admin Login (Start Here)",
+			"description": "Logs in as the pre-existing 'admin' user to get the initial tokens.",
+			"item": [
+				{
+					"name": "[STEP 1] Login as built-in ADMIN",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"var data = pm.response.json();",
+									"pm.collectionVariables.set(\"admin_token\", data.accessToken);",
+									"pm.collectionVariables.set(\"admin_refresh_token\", data.refreshToken);",
+									"",
+									"// Also set the admin_user_id from the token",
+									"try {",
+									"    var jwtData = JSON.parse(atob(data.accessToken.split('.')[1]));",
+									"    pm.collectionVariables.set(\"admin_user_id\", jwtData.userId);",
+									"    console.log(\"Admin user ID from token: \" + jwtData.userId);",
+									"} catch (e) { console.log(e); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Logs in as the built-in ADMIN user and saves the `accessToken` and `refreshToken` to collection variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token (Admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Update the admin token with the new one",
+									"var data = pm.response.json();",
+									"pm.collectionVariables.set(\"admin_token\", data.accessToken);",
+									"console.log(\"Admin token has been refreshed.\")"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{admin_refresh_token}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/refresh",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"refresh"
+							]
+						},
+						"description": "Uses the admin's refresh token to get a new access token."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by Username (Inter-service check)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/username/admin",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"username",
+								"admin"
+							]
+						},
+						"description": "This endpoint is used by the Auth service to get user details. It should be publicly accessible (permitAll() in SecurityConfig)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "1. Admin - User Management",
+			"description": "Test all endpoints on the User service. Requires ADMIN token.",
+			"item": [
+				{
+					"name": "[STEP 2] (Admin) Create Test CLIENT",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"// Parse the 'Location' header to get the ID of the newly created user",
+									"var locationHeader = pm.response.headers.get(\"Location\");",
+									"if (locationHeader) {",
+									"    var newId = locationHeader.split('/').pop();",
+									"    pm.collectionVariables.set(\"client_user_id\", newId);",
+									"    console.log(\"Set client_user_id to: \" + newId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"postman_client\",\n  \"password\": \"password123\",\n  \"name\": \"Postman Client\",\n  \"role\": \"CLIENT\",\n  \"email\": \"client@postman.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users"
+							]
+						},
+						"description": "Creates a new CLIENT user for testing. It saves the new user's ID from the 'Location' header into the `client_user_id` variable. Requires Admin token."
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Get Admin User by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{admin_user_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{admin_user_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Get Client User by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{client_user_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{client_user_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Get Users by Role (CLIENT)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/role/CLIENT",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"role",
+								"CLIENT"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Update Client User",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"postman_client_updated\",\n    \"name\": \"Postman Client (Updated)\",\n    \"email\": \"client_updated@postman.com\",\n    \"role\": \"CLIENT\",\n    \"password\": null\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{client_user_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{client_user_id}}"
+							]
+						},
+						"description": "Updates the client user. Password is set to null, so it will not be changed by the service."
+					},
+					"response": []
+				}
+			],
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{admin_token}}",
+						"type": "string"
+					}
+				]
+			},
+			"event": []
+		},
+		{
+			"name": "2. Admin - Device Management",
+			"description": "Test all endpoints on the Device service. Requires ADMIN token.",
+			"item": [
+				{
+					"name": "[STEP 3] (Admin) Create New Device",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"// Parse the 'Location' header to get the ID of the newly created device",
+									"var locationHeader = pm.response.headers.get(\"Location\");",
+									"if (locationHeader) {",
+									"    var newId = locationHeader.split('/').pop();",
+									"    pm.collectionVariables.set(\"new_device_id\", newId);",
+									"    console.log(\"Set new_device_id to: \" + newId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Postman Test Meter\",\n    \"description\": \"A smart meter for testing the API\",\n    \"address\": \"123 Postman Lane\",\n    \"maxConsumption\": 1500.5,\n    \"status\": \"ACTIVE\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/devices",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices"
+							]
+						},
+						"description": "Creates a new device and saves its ID to the `new_device_id` variable."
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Get All Devices",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Get Device by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/{{new_device_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"{{new_device_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Get Devices by Status (ACTIVE)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/status/ACTIVE",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"status",
+								"ACTIVE"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Get Unassigned Devices",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/unassigned",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"unassigned"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Update Device",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Postman Test Meter (Updated)\",\n    \"description\": \"Updated description\",\n    \"address\": \"123 Postman Lane, Updated\",\n    \"maxConsumption\": 2000.0,\n    \"status\": \"MAINTENANCE\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/{{new_device_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"{{new_device_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[STEP 4] (Admin) Assign Device to Client",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/{{new_device_id}}/assign/{{client_user_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"{{new_device_id}}",
+								"assign",
+								"{{client_user_id}}"
+							]
+						},
+						"description": "Assigns the newly created device to the newly created client."
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Get Devices for Client (Admin View)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/user/{{client_user_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"user",
+								"{{client_user_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Count Devices for Client",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/user/{{client_user_id}}/count",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"user",
+								"{{client_user_id}}",
+								"count"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "(Admin) Unassign Device",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/{{new_device_id}}/unassign",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"{{new_device_id}}",
+								"unassign"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{admin_token}}",
+						"type": "string"
+					}
+				]
+			},
+			"event": []
+		},
+		{
+			"name": "3. Client Flow (Security Test)",
+			"description": "Test endpoints from the perspective of a CLIENT. Requires CLIENT token.",
+			"item": [
+				{
+					"name": "[STEP 5] Login as Test CLIENT",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"var data = pm.response.json();",
+									"pm.collectionVariables.set(\"client_token\", data.accessToken);",
+									"pm.collectionVariables.set(\"client_refresh_token\", data.refreshToken);",
+									"",
+									"// Also re-set the client_user_id from the token",
+									"try {",
+									"    var jwtData = JSON.parse(atob(data.accessToken.split('.')[1]));",
+									"    pm.collectionVariables.set(\"client_user_id\", jwtData.userId);",
+									"    console.log(\"Client user ID from token: \" + jwtData.userId);",
+									"} catch (e) { console.log(e); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"postman_client\",\n  \"password\": \"password123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Logs in as the test CLIENT user (created by the Admin) and saves the `accessToken` and `refreshToken`."
+					},
+					"response": []
+				},
+				{
+					"name": "(Client) Get My Devices",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/user/{{client_user_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"user",
+								"{{client_user_id}}"
+							]
+						},
+						"description": "A client should be able to see their own devices. This tests: `hasAuthority('CLIENT') and #userId.toString() == principal`"
+					},
+					"response": []
+				},
+				{
+					"name": "(FAIL) (Client) Try to Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users"
+							]
+						},
+						"description": "This should fail with a 403 Forbidden, as clients cannot list all users (`/users` is ADMIN only)."
+					},
+					"response": []
+				},
+				{
+					"name": "(FAIL) (Client) Try to Create a Device",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Client Haxor Device\",\n    \"description\": \"Trying to create a device as a client\",\n    \"address\": \"123 Failure St\",\n    \"maxConsumption\": 9999,\n    \"status\": \"ACTIVE\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/devices",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices"
+							]
+						},
+						"description": "This should fail with a 403 Forbidden, as clients cannot create devices."
+					},
+					"response": []
+				},
+				{
+					"name": "(FAIL) (Client) Try to Get Admin's Devices",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/user/{{admin_user_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"user",
+								"{{admin_user_id}}"
+							]
+						},
+						"description": "This must fail with 403 Forbidden. A client cannot see another user's devices. This tests: `#userId.toString() == principal`"
+					},
+					"response": []
+				}
+			],
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{client_token}}",
+						"type": "string"
+					}
+				]
+			},
+			"event": []
+		},
+		{
+			"name": "99. Cleanup (ADMIN)",
+			"description": "Delete all resources created during the test run. Requires ADMIN token.",
+			"item": [
+				{
+					"name": "[CLEANUP] (Admin) Delete Test Device (IGNORE ERRORS)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/devices/{{new_device_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"devices",
+								"{{new_device_id}}"
+							]
+						},
+						"description": "Deletes the device created during the test."
+					},
+					"response": []
+				},
+				{
+					"name": "[CLEANUP] (Admin) Delete Test CLIENT User (IGNORE ERRORS)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{client_user_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{client_user_id}}"
+							]
+						},
+						"description": "Deletes the client user created during the test."
+					},
+					"response": []
+				},
+				{
+					"name": "[CLEANUP] Logout Admin",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{admin_refresh_token}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Logs out the admin user, invalidating the refresh token."
+					},
+					"response": []
+				},
+				{
+					"name": "[CLEANUP] Logout Client",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{client_refresh_token}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Logs out the client user, invalidating the refresh token."
+					},
+					"response": []
+				}
+			],
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{admin_token}}",
+						"type": "string"
+					}
+				]
+			},
+			"event": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "admin_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "admin_refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "admin_user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "client_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "client_refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "client_user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "new_device_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
