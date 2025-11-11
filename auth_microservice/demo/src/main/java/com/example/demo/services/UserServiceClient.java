@@ -36,7 +36,7 @@ public class UserServiceClient {
      * We need this to get the user's ID, role, and hashed password for login.
      */
     public Mono<UserResponseDTO> findUserByUsername(String username) {
-        String url = userServiceUrl + "/users/username/" + username;
+        String url = userServiceUrl + "/api/users/username/" + username;
         log.debug("Calling user-service: GET {}", url);
 
         return webClient.get()
@@ -62,7 +62,7 @@ public class UserServiceClient {
      * Calls the user-service to create a new user.
      */
     public Mono<Void> registerUser(RegisterRequestDTO registerRequest) {
-        String url = userServiceUrl + "/users";
+        String url = userServiceUrl + "/api/users";
         log.debug("Calling user-service: POST {}", url);
 
         return webClient.post()

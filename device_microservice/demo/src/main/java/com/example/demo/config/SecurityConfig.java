@@ -28,14 +28,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Add prefixed Swagger paths BEFORE anyRequest()
-                        .requestMatchers("/devices/swagger-ui.html").permitAll()
-                        .requestMatchers("/devices/swagger-ui/**").permitAll()
-                        .requestMatchers("/devices/v3/api-docs/**").permitAll()
-
-                        // Original rules (can be kept for safety)
-                        .requestMatchers("/v3/api-docs/**").permitAll()
-                        .requestMatchers("/swagger-ui/**").permitAll()
-                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/api/devices/swagger-ui.html").permitAll()
+                        .requestMatchers("/api/devices/swagger-ui/**").permitAll()
+                        .requestMatchers("/api/devices/v3/api-docs/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

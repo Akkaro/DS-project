@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/devices")
+@RequestMapping("/api/devices")
 @Validated
 @Tag(name = "Device Management", description = "Endpoints for managing devices and user assignments.")
 @SecurityRequirement(name = "bearerAuth")

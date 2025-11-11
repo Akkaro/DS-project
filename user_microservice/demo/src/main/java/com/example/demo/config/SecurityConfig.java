@@ -35,12 +35,12 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/users/swagger-ui.html").permitAll()
-                        .requestMatchers("/users/swagger-ui/**").permitAll()
-                        .requestMatchers("/users/v3/api-docs/**").permitAll()
+                        .requestMatchers("/api/users/swagger-ui.html").permitAll()
+                        .requestMatchers("/api/users/swagger-ui/**").permitAll()
+                        .requestMatchers("/api/users/v3/api-docs/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/users/username/**").permitAll()
-                        .requestMatchers("/users", "/users/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/users/username/**").permitAll()
+                        .requestMatchers("/api/users", "/api/users/**").hasAuthority("ADMIN")
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

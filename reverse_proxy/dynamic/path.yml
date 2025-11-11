@@ -21,8 +21,6 @@ http:
       rule: "Host(`localhost`) && PathPrefix(`/api/users`)"
       entryPoints:
         - web
-      middlewares:
-        - strip-api-prefix
       service: user-service
 
     # Device Microservice Routes
@@ -30,8 +28,6 @@ http:
       rule: "Host(`localhost`) && PathPrefix(`/api/devices`)"
       entryPoints:
         - web
-      middlewares:
-        - strip-api-prefix
       service: device-service
 
   # ==========================================

@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/users")
 @Validated
 @Tag(name = "User Management", description = "Endpoints for managing user accounts (Admin Only).")
 @SecurityRequirement(name = "bearerAuth")
