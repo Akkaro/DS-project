@@ -3,7 +3,6 @@ package com.example.demo.services;
 import com.example.demo.dtos.AuthResponseDTO;
 import com.example.demo.dtos.LoginRequestDTO;
 import com.example.demo.dtos.RegisterRequestDTO;
-import com.example.demo.dtos.UserResponseDTO;
 import com.example.demo.entities.RefreshToken;
 import com.example.demo.handlers.exceptions.model.CustomException;
 import com.example.demo.handlers.exceptions.model.TokenRefreshException;
@@ -15,7 +14,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class AuthService {

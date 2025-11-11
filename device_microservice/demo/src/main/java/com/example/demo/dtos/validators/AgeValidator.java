@@ -2,7 +2,6 @@ package com.example.demo.dtos.validators;
 
 
 import com.example.demo.dtos.validators.annotation.AgeLimit;
-import org.springframework.stereotype.Component;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
