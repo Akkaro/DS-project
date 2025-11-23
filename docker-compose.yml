@@ -108,7 +108,7 @@ services:
       user-db:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     networks:
       - ems-network
     healthcheck:
@@ -139,7 +139,7 @@ services:
       device-db:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     networks:
       - ems-network
     healthcheck:
@@ -185,8 +185,10 @@ services:
       - SPRING_RABBITMQ_PORT=5672
       - PORT=8083 # New port
     depends_on:
-      - rabbitmq
-      - monitoring-db
+      rabbitmq:
+        condition: service_healthy
+      monitoring-db:
+        condition: service_healthy
     networks:
       - ems-network
 
@@ -216,6 +218,11 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     networks:
       - ems-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ==========================================
   # Device Simulator
@@ -230,7 +237,8 @@ services:
       - SPRING_RABBITMQ_HOST=rabbitmq
       - DEVICE_ID=0134b955-8826-460b-90ba-dcdde838c14a
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - ems-network
 

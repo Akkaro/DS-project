@@ -32,3 +32,8 @@ The existing services were updated to support the new event-driven flow:
 ### 4. Frontend Visualization
 * **Chart.js Integration:** The client dashboard now includes a "View Consumption" feature.
 * **Interactive Graph:** Users can select a specific date to view a bar chart of their device's hourly energy consumption, fetched from the Monitoring Service.
+
+### 5. Tracking RabbitMQ messages
+* RabbitMQ messages can be tracked accessing **http://localhost:15672**
+* Username: guest
+* Password: guest
