@@ -19,14 +19,21 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate; // Add this
+import java.util.HashMap; // Add this
+import java.util.Map;     // Add this
+import com.example.demo.config.RabbitConfig; // Add this
+
 @Service
 public class DeviceService {
     private static final Logger LOGGER = LoggerFactory.getLogger(DeviceService.class);
     private final DeviceRepository deviceRepository;
+    private final RabbitTemplate rabbitTemplate; // Add this field
 
     @Autowired
-    public DeviceService(DeviceRepository deviceRepository) {
+    public DeviceService(DeviceRepository deviceRepository, RabbitTemplate rabbitTemplate) {
         this.deviceRepository = deviceRepository;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     public List<DeviceDTO> findDevices() {
@@ -81,6 +88,22 @@ public class DeviceService {
 
         Device device = DeviceBuilder.toEntity(deviceDTO);
         device = deviceRepository.save(device);
+
+        // --- SYNC LOGIC START ---
+        try {
+            Map<String, Object> syncMsg = new HashMap<>();
+            syncMsg.put("action", "create_device");
+            syncMsg.put("deviceId", device.getId());
+            syncMsg.put("userId", device.getUserId());
+            syncMsg.put("maxConsumption", device.getMaxConsumption());
+
+            rabbitTemplate.convertAndSend(RabbitConfig.SYNC_QUEUE, syncMsg);
+            LOGGER.debug("Sent sync message for device creation: {}", device.getId());
+        } catch (Exception e) {
+            LOGGER.error("Failed to send sync message", e);
+            // Don't throw exception here, we don't want to rollback the DB transaction just because Rabbit failed (optional choice)
+        }
+        // --- SYNC LOGIC END ---
         LOGGER.debug("Device with id {} was inserted in db", device.getId());
         return device.getId();
     }
@@ -123,6 +146,19 @@ public class DeviceService {
             throw new ResourceNotFoundException(Device.class.getSimpleName() + " with id: " + id);
         }
         deviceRepository.deleteById(id);
+
+        // --- SYNC LOGIC START ---
+        try {
+            Map<String, Object> syncMsg = new HashMap<>();
+            syncMsg.put("action", "delete_device");
+            syncMsg.put("deviceId", id);
+
+            rabbitTemplate.convertAndSend(RabbitConfig.SYNC_QUEUE, syncMsg);
+        } catch (Exception e) {
+             LOGGER.error("Failed to send sync message", e);
+        }
+        // --- SYNC LOGIC END ---
+
         LOGGER.debug("Device with id {} was deleted from db", id);
     }
 

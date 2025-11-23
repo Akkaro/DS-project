@@ -28,6 +28,10 @@ public class SensorConsumer {
 
     @RabbitListener(queues = "${app.queue.sensor}")
     public void receiveSensorData(SensorDataDTO data) {
+        if (data.getDeviceId() == null) {
+            System.out.println("Received invalid data (null Device ID). Ignoring.");
+            return;
+        }
         UUID deviceId = data.getDeviceId();
 
         // 1. Validate Device (Requirements: "first must be verified if a device exists")

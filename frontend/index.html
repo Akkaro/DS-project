@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Energy Management System</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -194,6 +195,24 @@
         </div>
     </div>
 
+    <div id="chart-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300 z-50">
+        <div id="chart-modal-content" class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl transform scale-95 opacity-0 transition-all duration-300">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="chart-device-name" class="text-xl font-semibold text-slate-800">Device Consumption</h3>
+                <button id="chart-modal-close-btn" class="text-slate-500 hover:text-slate-800 text-2xl">&times;</button>
+            </div>
+
+            <div class="mb-4 flex items-center gap-2">
+                <label for="chart-date" class="text-sm font-medium text-slate-600">Select Date:</label>
+                <input type="date" id="chart-date" class="border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+
+            <div class="relative h-96 w-full">
+                <canvas id="consumptionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             
@@ -207,6 +226,8 @@
             let allUsers = [];
             let allDevices = [];
             let adminUsersMap = new Map();
+            let currentChart = null;
+            let currentDeviceId = null;
 
             // --- Element Selectors ---
             const loginView = document.getElementById('login-view');
@@ -503,12 +524,25 @@
                             <p class="text-sm text-slate-600">${device.description || 'No description'}</p>
                             <p class="text-sm text-slate-600">${device.address || 'No address'}</p>
                         </div>
-                        <div class="mt-2 md:mt-0 md:text-right">
+                        <div class="mt-2 md:mt-0 md:text-right flex flex-col items-end gap-2">
                             <span class="font-medium ${statusColor} capitalize">${(device.status || 'unknown').toLowerCase()}</span>
                             <p class="text-sm text-slate-500">Max: ${device.maxConsumption} W</p>
+                            <button class="view-chart-btn bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1 rounded text-sm font-medium transition" 
+                                    data-id="${device.id}" data-name="${device.name}">
+                                View Consumption
+                            </button>
                         </div>
                     `;
                     clientDeviceList.appendChild(li);
+                });
+            
+                // Add listeners to the new buttons
+                document.querySelectorAll('.view-chart-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const id = e.target.dataset.id;
+                        const name = e.target.dataset.name;
+                        openChartModal(id, name);
+                    });
                 });
             }
             
@@ -572,6 +606,98 @@
                     }
                 });
             }
+            
+            const chartModalBackdrop = document.getElementById('chart-modal-backdrop');
+            const chartModalContent = document.getElementById('chart-modal-content');
+            const chartDateInput = document.getElementById('chart-date');
+            const chartCloseBtn = document.getElementById('chart-modal-close-btn');
+                    
+            function openChartModal(deviceId, deviceName) {
+                currentDeviceId = deviceId;
+                document.getElementById('chart-device-name').textContent = `Consumption: ${deviceName}`;
+            
+                // Default to today
+                chartDateInput.valueAsDate = new Date();
+            
+                // Show Modal
+                chartModalBackdrop.classList.remove('opacity-0', 'pointer-events-none');
+                chartModalContent.classList.remove('scale-95', 'opacity-0');
+            
+                fetchAndRenderChart();
+            }
+            
+            function closeChartModal() {
+                chartModalBackdrop.classList.add('opacity-0', 'pointer-events-none');
+                chartModalContent.classList.add('scale-95', 'opacity-0');
+            }
+            
+            async function fetchAndRenderChart() {
+                if (!currentDeviceId) return;
+                const date = chartDateInput.value; // YYYY-MM-DD
+            
+                try {
+                    // Fetch Data
+                    // NOTE: This requires the new endpoint in monitoring-service
+                    const response = await fetch(`${API_BASE}/monitoring/consumption/${currentDeviceId}?date=${date}`, {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                
+                    if (!response.ok) throw new Error("Failed to load chart data");
+                    const data = await response.json();
+                
+                    renderChart(data);
+                } catch (error) {
+                    console.error(error);
+                    alert("Could not load consumption data.");
+                }
+            }
+            
+            function renderChart(data) {
+                const ctx = document.getElementById('consumptionChart').getContext('2d');
+            
+                // Destroy previous chart instance if it exists
+                if (currentChart) {
+                    currentChart.destroy();
+                }
+            
+                // Process Data for Chart.js
+                // We want all hours 0-23, filling gaps with 0
+                const hours = Array.from({length: 24}, (_, i) => `${i}:00`);
+                const values = new Array(24).fill(0);
+            
+                data.forEach(record => {
+                    const hour = new Date(record.timestamp).getHours();
+                    values[hour] = record.totalConsumption;
+                });
+            
+                currentChart = new Chart(ctx, {
+                    type: 'bar', // or 'line'
+                    data: {
+                        labels: hours,
+                        datasets: [{
+                            label: 'Energy Consumption (kWh)',
+                            data: values,
+                            backgroundColor: 'rgba(59, 130, 246, 0.5)', // Blue-500
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+            
+            // Chart Event Listeners
+            chartCloseBtn.addEventListener('click', closeChartModal);
+            chartModalBackdrop.addEventListener('click', (e) => {
+                if (e.target === chartModalBackdrop) closeChartModal();
+            });
+            chartDateInput.addEventListener('change', fetchAndRenderChart);
 
             function showUpdateDeviceModal(device) {
                 const formHtml = `

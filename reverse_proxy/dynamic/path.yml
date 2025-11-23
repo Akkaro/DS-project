@@ -29,6 +29,13 @@ http:
       entryPoints:
         - web
       service: device-service
+    
+    # Monitoring Service Route
+    monitoring-service:
+      rule: "Host(`localhost`) && PathPrefix(`/api/monitoring`)"
+      entryPoints:
+        - web
+      service: monitoring-service
 
   # ==========================================
   # MIDDLEWARES - Transform and validate requests
@@ -77,3 +84,8 @@ http:
           path: /actuator/health
           interval: "30s"
           timeout: "5s"
+
+    monitoring-service:
+      loadBalancer:
+        servers:
+          - url: "http://monitoring-service:8083"

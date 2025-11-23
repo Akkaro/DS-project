@@ -100,9 +100,15 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=root
       - PORT=8080
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=guest
+      - SPRING_RABBITMQ_PASSWORD=guest
     depends_on:
       user-db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - ems-network
     healthcheck:
@@ -125,9 +131,15 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=root
       - PORT=8080
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=guest
+      - SPRING_RABBITMQ_PASSWORD=guest
     depends_on:
       device-db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - ems-network
     healthcheck:
@@ -216,7 +228,7 @@ services:
     restart: always
     environment:
       - SPRING_RABBITMQ_HOST=rabbitmq
-      - DEVICE_ID=your-test-device-uuid-here # Configurable Device ID
+      - DEVICE_ID=e99be6cc-84e2-46b5-aaec-387c44293532
     depends_on:
       - rabbitmq
     networks:
