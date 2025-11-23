@@ -64,6 +64,26 @@ services:
       timeout: 5s
       retries: 5
 
+  monitoring-db:
+    image: postgres:latest
+    container_name: monitoring-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: monitoring_db
+    ports:
+      - "5436:5432"
+    volumes:
+      - monitoring-db-data:/var/lib/postgresql/data
+    networks:
+      - ems-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d monitoring_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ==========================================
   # MICROSERVICES
   # ==========================================
@@ -137,6 +157,27 @@ services:
     networks:
       - ems-network
 
+  monitoring-service:
+    build:
+      context: ./monitoring_microservice
+      dockerfile: ./Dockerfile
+    container_name: monitoring-service
+    restart: always
+    environment:
+      - DB_IP=monitoring-db
+      - DB_PORT=5432
+      - DB_DBNAME=monitoring_db
+      - DB_USER=postgres
+      - DB_PASSWORD=root
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - PORT=8083 # New port
+    depends_on:
+      - rabbitmq
+      - monitoring-db
+    networks:
+      - ems-network
+
   # ==========================================
   # FRONTEND
   # ==========================================
@@ -146,6 +187,38 @@ services:
     restart: always
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
+    networks:
+      - ems-network
+
+  # ==========================================
+  # RabbitMQ
+  # ==========================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - ems-network
+
+  # ==========================================
+  # Device Simulator
+  # ==========================================
+  device-simulator:
+    build:
+      context: ./device_simulator
+      dockerfile: ./Dockerfile
+    container_name: device-simulator
+    restart: always
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - DEVICE_ID=your-test-device-uuid-here # Configurable Device ID
+    depends_on:
+      - rabbitmq
     networks:
       - ems-network
 
@@ -181,6 +254,8 @@ volumes:
   device-db-data:
     driver: local
   auth-db-data:
+    driver: local
+  monitoring-db-data:
     driver: local
 
 # ==========================================
