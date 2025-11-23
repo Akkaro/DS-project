@@ -19,16 +19,16 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.amqp.rabbit.core.RabbitTemplate; // Add this
-import java.util.HashMap; // Add this
-import java.util.Map;     // Add this
-import com.example.demo.config.RabbitConfig; // Add this
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import java.util.HashMap;
+import java.util.Map;
+import com.example.demo.config.RabbitConfig;
 
 @Service
 public class DeviceService {
     private static final Logger LOGGER = LoggerFactory.getLogger(DeviceService.class);
     private final DeviceRepository deviceRepository;
-    private final RabbitTemplate rabbitTemplate; // Add this field
+    private final RabbitTemplate rabbitTemplate;
 
     @Autowired
     public DeviceService(DeviceRepository deviceRepository, RabbitTemplate rabbitTemplate) {
@@ -101,7 +101,6 @@ public class DeviceService {
             LOGGER.debug("Sent sync message for device creation: {}", device.getId());
         } catch (Exception e) {
             LOGGER.error("Failed to send sync message", e);
-            // Don't throw exception here, we don't want to rollback the DB transaction just because Rabbit failed (optional choice)
         }
         // --- SYNC LOGIC END ---
         LOGGER.debug("Device with id {} was inserted in db", device.getId());

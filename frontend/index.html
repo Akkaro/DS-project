@@ -536,7 +536,6 @@
                     clientDeviceList.appendChild(li);
                 });
             
-                // Add listeners to the new buttons
                 document.querySelectorAll('.view-chart-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         const id = e.target.dataset.id;
@@ -616,10 +615,8 @@
                 currentDeviceId = deviceId;
                 document.getElementById('chart-device-name').textContent = `Consumption: ${deviceName}`;
             
-                // Default to today
                 chartDateInput.valueAsDate = new Date();
             
-                // Show Modal
                 chartModalBackdrop.classList.remove('opacity-0', 'pointer-events-none');
                 chartModalContent.classList.remove('scale-95', 'opacity-0');
             
@@ -633,11 +630,9 @@
             
             async function fetchAndRenderChart() {
                 if (!currentDeviceId) return;
-                const date = chartDateInput.value; // YYYY-MM-DD
+                const date = chartDateInput.value;
             
                 try {
-                    // Fetch Data
-                    // NOTE: This requires the new endpoint in monitoring-service
                     const response = await fetch(`${API_BASE}/monitoring/consumption/${currentDeviceId}?date=${date}`, {
                         headers: { 'Authorization': `Bearer ${accessToken}` }
                     });
@@ -655,13 +650,10 @@
             function renderChart(data) {
                 const ctx = document.getElementById('consumptionChart').getContext('2d');
             
-                // Destroy previous chart instance if it exists
                 if (currentChart) {
                     currentChart.destroy();
                 }
             
-                // Process Data for Chart.js
-                // We want all hours 0-23, filling gaps with 0
                 const hours = Array.from({length: 24}, (_, i) => `${i}:00`);
                 const values = new Array(24).fill(0);
             
@@ -671,13 +663,13 @@
                 });
             
                 currentChart = new Chart(ctx, {
-                    type: 'bar', // or 'line'
+                    type: 'bar',
                     data: {
                         labels: hours,
                         datasets: [{
                             label: 'Energy Consumption (kWh)',
                             data: values,
-                            backgroundColor: 'rgba(59, 130, 246, 0.5)', // Blue-500
+                            backgroundColor: 'rgba(59, 130, 246, 0.5)',
                             borderColor: 'rgba(59, 130, 246, 1)',
                             borderWidth: 1
                         }]
@@ -692,7 +684,6 @@
                 });
             }
             
-            // Chart Event Listeners
             chartCloseBtn.addEventListener('click', closeChartModal);
             chartModalBackdrop.addEventListener('click', (e) => {
                 if (e.target === chartModalBackdrop) closeChartModal();
@@ -758,7 +749,6 @@
             }
 
 
-            // --- Event Listeners ---
             loginForm.addEventListener('submit', handleLogin);
             adminLogoutBtn.addEventListener('click', handleLogout);
             clientLogoutBtn.addEventListener('click', handleLogout);
@@ -879,7 +869,6 @@
                 }
             });
 
-            // --- Initial Load ---
             showView('login-view');
         });
     </script>

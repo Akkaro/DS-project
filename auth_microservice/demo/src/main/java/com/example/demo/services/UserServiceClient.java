@@ -54,7 +54,7 @@ public class UserServiceClient {
                                     "Error finding user", HttpStatus.INTERNAL_SERVER_ERROR, "user-service", List.of(body)));
                         })
                 )
-                .bodyToMono(UserResponseDTO.class) // <-- This was 'Void.class' before, which was wrong.
+                .bodyToMono(UserResponseDTO.class)
                 .doOnError(e -> log.error("findUserByUsername failed", e));
     }
 

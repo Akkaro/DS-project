@@ -27,7 +27,6 @@ public class MonitoringController {
             @PathVariable UUID deviceId,
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
-        // Create start and end of the day (00:00:00 to 23:59:59)
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
 

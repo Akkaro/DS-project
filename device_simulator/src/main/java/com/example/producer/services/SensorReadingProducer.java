@@ -17,8 +17,6 @@ public class SensorReadingProducer {
 
     private final RabbitTemplate rabbitTemplate;
     
-    // Optional: Allow overriding the CSV file path via environment
-    // @Value("${SENSOR_CSV_PATH:sensor.csv}")
     private String csvFileName = "sensor.csv";
 
     private BufferedReader reader;
@@ -36,7 +34,6 @@ public class SensorReadingProducer {
     private void initializeReader() {
         try {
             ClassPathResource resource = new ClassPathResource(csvFileName);
-            // Check if file exists before trying to open
             if (resource.exists()) {
                 this.reader = new BufferedReader(new InputStreamReader(resource.getInputStream()));
                 System.out.println("Opened CSV file: " + csvFileName);
@@ -53,24 +50,19 @@ public class SensorReadingProducer {
     @Scheduled(fixedRate = 1000) 
     public void sendDataBatch() {
         if (reader == null) {
-            return; // Reader failed to initialize
+            return;
         }
 
         try {
             for (int i = 0; i < BATCH_SIZE; i++) {
                 String line = reader.readLine();
                 
-                // If end of file, loop back to start
                 if (line == null) {
                     System.out.println("End of CSV reached. Restarting...");
-                    // Close old reader to prevent leaks (though ClassPathResource stream is managed)
                     try { reader.close(); } catch (Exception ignored) {} 
                     
-                    initializeReader();
-                    line = reader.readLine();
-                    
-                    // If file is empty, break loop
-                    if (line == null) break; 
+                    reader = null;
+                    break;
                 }
 
                 if (!line.trim().isEmpty()) {
@@ -87,7 +79,6 @@ public class SensorReadingProducer {
         try {
             String[] parts = line.split(",");
             
-            // Validate format
             if (parts.length < 3) {
                 System.err.println("Invalid line format: " + line);
                 return;
@@ -100,10 +91,6 @@ public class SensorReadingProducer {
             SensorDataDTO data = new SensorDataDTO(timestamp, deviceId, measurement);
             
             rabbitTemplate.convertAndSend(RabbitConfig.QUEUE_NAME, data);
-            
-            // Logging every single message slows down I/O. 
-            // Consider logging only occasionally or using debug level.
-            // System.out.println("Sent: " + measurement + " -> " + deviceId);
 
         } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
             System.err.println("Skipping malformed line: " + line + " Error: " + e.getMessage());

@@ -13,18 +13,15 @@ public class Device {
     private Double maxConsumption;
     private UUID userId;
 
-    // No-args constructor (required by JPA)
     public Device() {
     }
 
-    // All-args constructor
     public Device(UUID id, Double maxConsumption, UUID userId) {
         this.id = id;
         this.maxConsumption = maxConsumption;
         this.userId = userId;
     }
 
-    // Getters and Setters
     public UUID getId() {
         return id;
     }

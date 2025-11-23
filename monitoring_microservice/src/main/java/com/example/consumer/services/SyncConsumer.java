@@ -28,7 +28,6 @@ public class SyncConsumer {
                 Device device = new Device();
                 device.setId(deviceId);
                 
-                // Handle Double conversion safely
                 Object maxConsObj = message.get("maxConsumption");
                 if (maxConsObj instanceof Number) {
                     device.setMaxConsumption(((Number) maxConsObj).doubleValue());

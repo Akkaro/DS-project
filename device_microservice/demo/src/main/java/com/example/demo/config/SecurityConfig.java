@@ -27,7 +27,6 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Add prefixed Swagger paths BEFORE anyRequest()
                         .requestMatchers("/api/devices/swagger-ui.html").permitAll()
                         .requestMatchers("/api/devices/swagger-ui/**").permitAll()
                         .requestMatchers("/api/devices/v3/api-docs/**").permitAll()

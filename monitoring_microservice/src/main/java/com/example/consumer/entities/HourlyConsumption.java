@@ -15,11 +15,9 @@ public class HourlyConsumption {
     private double totalConsumption;
     private UUID deviceId;
 
-    // No-args constructor (required by JPA)
     public HourlyConsumption() {
     }
 
-    // All-args constructor
     public HourlyConsumption(Long id, LocalDateTime timestamp, double totalConsumption, UUID deviceId) {
         this.id = id;
         this.timestamp = timestamp;
@@ -27,7 +25,6 @@ public class HourlyConsumption {
         this.deviceId = deviceId;
     }
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }

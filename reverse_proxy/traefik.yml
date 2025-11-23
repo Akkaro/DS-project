@@ -19,8 +19,6 @@ entryPoints:
 
 # Configure providers
 providers:
-  # File provider - read all routing rules from /etc/traefik/dynamic
-  # This is the only provider needed since path.yml defines all routes.
   file:
     directory: "/etc/traefik/dynamic"
-    watch: true  # Auto-reload when files change
+    watch: true 

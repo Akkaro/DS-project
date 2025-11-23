@@ -183,7 +183,7 @@ services:
       - DB_PASSWORD=root
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_RABBITMQ_PORT=5672
-      - PORT=8083 # New port
+      - PORT=8083
     depends_on:
       rabbitmq:
         condition: service_healthy
