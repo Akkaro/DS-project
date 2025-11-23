@@ -23,7 +23,7 @@ public class UserBuilder {
         return new UserDetailsDTO(
                 user.getId(),
                 user.getUsername(),
-                user.getPassword(),
+                null,
                 user.getEmail(),
                 user.getName(),
                 user.getRole()
@@ -32,10 +32,10 @@ public class UserBuilder {
 
     public static User toEntity(UserDetailsDTO userDetailsDTO) {
         return new User(
+                userDetailsDTO.getId(),
                 userDetailsDTO.getUsername(),
-                userDetailsDTO.getPassword(),
-                userDetailsDTO.getEmail(),
                 userDetailsDTO.getName(),
+                userDetailsDTO.getEmail(),
                 userDetailsDTO.getRole()
         );
     }

@@ -760,7 +760,7 @@
                 const data = Object.fromEntries(formData.entries());
 
                 try {
-                    await fetchApi(`${API_BASE}/users`, {
+                    await fetchApi(`${API_BASE}/auth/register`, {
                         method: 'POST',
                         body: JSON.stringify(data)
                     });

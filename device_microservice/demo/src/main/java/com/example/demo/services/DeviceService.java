@@ -97,7 +97,7 @@ public class DeviceService {
             syncMsg.put("userId", device.getUserId());
             syncMsg.put("maxConsumption", device.getMaxConsumption());
 
-            rabbitTemplate.convertAndSend(RabbitConfig.SYNC_QUEUE, syncMsg);
+            rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_NAME, "", syncMsg);
             LOGGER.debug("Sent sync message for device creation: {}", device.getId());
         } catch (Exception e) {
             LOGGER.error("Failed to send sync message", e);
@@ -152,7 +152,7 @@ public class DeviceService {
             syncMsg.put("action", "delete_device");
             syncMsg.put("deviceId", id);
 
-            rabbitTemplate.convertAndSend(RabbitConfig.SYNC_QUEUE, syncMsg);
+            rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_NAME, "", syncMsg);
         } catch (Exception e) {
              LOGGER.error("Failed to send sync message", e);
         }

@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -28,13 +27,11 @@ import java.util.stream.Collectors;
 public class UserService {
     private static final Logger LOGGER = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final RabbitTemplate rabbitTemplate;
 
     @Autowired
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, RabbitTemplate rabbitTemplate) {
+    public UserService(UserRepository userRepository, RabbitTemplate rabbitTemplate) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
         this.rabbitTemplate = rabbitTemplate;
     }
 
@@ -65,15 +62,19 @@ public class UserService {
         }
 
         User user = UserBuilder.toEntity(userDTO);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        
+        if (user.getId() == null) {
+            user.setId(UUID.randomUUID());
+        }
+        
+        
         user = userRepository.save(user);
         
         // --- SYNC LOGIC START ---
         try {
             Map<String, Object> syncMsg = new HashMap<>();
             syncMsg.put("action", "create_user");
-            syncMsg.put("userId", user.getId());
-            // Add other attributes if needed by requirements, e.g. username
+            syncMsg.put("userId", user.getId().toString());
             
             rabbitTemplate.convertAndSend(RabbitConfig.SYNC_QUEUE, syncMsg);
             LOGGER.debug("Sent sync message for user creation: {}", user.getId());
@@ -109,10 +110,6 @@ public class UserService {
         user.setEmail(userDTO.getEmail());
         user.setName(userDTO.getName());
         user.setRole(userDTO.getRole());
-
-        if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
-            user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
-        }
 
         userRepository.save(user);
         LOGGER.debug("User with id {} was updated in db", id);
