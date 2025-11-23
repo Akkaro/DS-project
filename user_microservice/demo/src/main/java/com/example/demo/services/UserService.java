@@ -1,5 +1,6 @@
 package com.example.demo.services;
 
+import com.example.demo.config.RabbitConfig;
 import com.example.demo.dtos.UserDTO;
 import com.example.demo.dtos.UserDetailsDTO;
 import com.example.demo.dtos.builders.UserBuilder;
@@ -10,12 +11,15 @@ import com.example.demo.handlers.exceptions.model.ResourceNotFoundException;
 import com.example.demo.repositories.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -25,11 +29,13 @@ public class UserService {
     private static final Logger LOGGER = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RabbitTemplate rabbitTemplate;
 
     @Autowired
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, RabbitTemplate rabbitTemplate) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     public List<UserDTO> findUsers() {
@@ -61,6 +67,21 @@ public class UserService {
         User user = UserBuilder.toEntity(userDTO);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user = userRepository.save(user);
+        
+        // --- SYNC LOGIC START ---
+        try {
+            Map<String, Object> syncMsg = new HashMap<>();
+            syncMsg.put("action", "create_user");
+            syncMsg.put("userId", user.getId());
+            // Add other attributes if needed by requirements, e.g. username
+            
+            rabbitTemplate.convertAndSend(RabbitConfig.SYNC_QUEUE, syncMsg);
+            LOGGER.debug("Sent sync message for user creation: {}", user.getId());
+        } catch (Exception e) {
+            LOGGER.error("Failed to send sync message", e);
+        }
+        // --- SYNC LOGIC END ---
+        
         LOGGER.debug("User with id {} was inserted in db", user.getId());
         return user.getId();
     }
@@ -104,6 +125,20 @@ public class UserService {
             throw new ResourceNotFoundException(User.class.getSimpleName() + " with id: " + id);
         }
         userRepository.deleteById(id);
+        
+        // --- SYNC LOGIC START ---
+        try {
+            Map<String, Object> syncMsg = new HashMap<>();
+            syncMsg.put("action", "delete_user");
+            syncMsg.put("userId", id);
+
+            rabbitTemplate.convertAndSend(RabbitConfig.SYNC_QUEUE, syncMsg);
+            LOGGER.debug("Sent sync message for user deletion: {}", id);
+        } catch (Exception e) {
+            LOGGER.error("Failed to send sync message", e);
+        }
+        // --- SYNC LOGIC END ---
+        
         LOGGER.debug("User with id {} was deleted from db", id);
     }
 

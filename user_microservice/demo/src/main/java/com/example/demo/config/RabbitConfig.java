@@ -8,9 +8,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitConfig {
-    
-    // This must match the queue name in Monitoring Service
-    public static final String SYNC_QUEUE = "sync.queue"; 
+    public static final String SYNC_QUEUE = "sync.queue";
 
     @Bean
     public Queue syncQueue() {
