@@ -228,7 +228,7 @@ services:
     restart: always
     environment:
       - SPRING_RABBITMQ_HOST=rabbitmq
-      - DEVICE_ID=e99be6cc-84e2-46b5-aaec-387c44293532
+      - DEVICE_ID=0134b955-8826-460b-90ba-dcdde838c14a
     depends_on:
       - rabbitmq
     networks:
