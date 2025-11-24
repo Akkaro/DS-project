@@ -12,7 +12,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -39,16 +38,6 @@ public class SecurityConfig {
         return authConfig.getAuthenticationManager();
     }
 
-    /**
-     * Creates a WebClient bean for communicating with other microservices.
-     */
-    @Bean
-    public WebClient webClient() {
-        return WebClient.builder()
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, "application/json")
-                .build();
-    }
-    
     /**
      * Configures CORS to allow requests from the frontend.
      */

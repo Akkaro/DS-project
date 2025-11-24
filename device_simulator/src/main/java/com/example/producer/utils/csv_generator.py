@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 # List of Device IDs (UUIDs) you want to simulate
 DEVICE_IDS = [
-    "2e36b7c5-c25e-4390-adb8-fd5505161fda",
+    "56458296-ef62-4dce-9246-ec4f6d740624",
 ]
 
 # Simulation Settings

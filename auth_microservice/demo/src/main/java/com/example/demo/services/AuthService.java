@@ -130,4 +130,30 @@ public class AuthService {
             });
         });
     }
+
+    @Transactional
+    public Mono<Void> deleteUser(UUID userId) {
+        return Mono.fromRunnable(() -> {
+            // 1. Delete local credentials
+            if (userCredentialRepository.existsById(userId)) {
+                userCredentialRepository.deleteById(userId);
+                log.info("Deleted credentials for user: {}", userId);
+            } else {
+                log.warn("User {} not found in Auth DB, sending sync event anyway.", userId);
+            }
+
+            // 2. Publish "delete_user" Event to RabbitMQ
+            Map<String, Object> syncMsg = new HashMap<>();
+            syncMsg.put("action", "delete_user");
+            syncMsg.put("userId", userId.toString());
+
+            try {
+                // Use the same exchange used in registration
+                rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_NAME, "", syncMsg);
+                log.info("Published delete_user event for user: {}", userId);
+            } catch (Exception e) {
+                log.error("Failed to publish sync message", e);
+            }
+        });
+    }
 }

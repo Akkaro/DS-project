@@ -9,6 +9,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+
+import java.util.UUID;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -60,5 +63,13 @@ public class AuthController {
     public Mono<ResponseEntity<Void>> logout(@Valid @RequestBody TokenRefreshRequestDTO refreshRequest) {
         return authService.logout(refreshRequest.getRefreshToken())
                 .then(Mono.just(ResponseEntity.ok().<Void>build()));
+    }
+
+    @Operation(summary = "Delete a user", description = "Deletes user credentials and broadcasts deletion event.")
+    @ApiResponse(responseCode = "204", description = "User deleted successfully")
+    @DeleteMapping("/user/{id}")
+    public Mono<ResponseEntity<Void>> deleteUser(@PathVariable UUID id) {
+        return authService.deleteUser(id)
+                .then(Mono.just(ResponseEntity.noContent().build()));
     }
 }

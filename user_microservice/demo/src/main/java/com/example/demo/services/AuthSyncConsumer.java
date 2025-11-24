@@ -28,6 +28,7 @@ public class AuthSyncConsumer {
             String action = (String) message.get("action");
             
             if ("create_user".equals(action)) {
+                // ... existing creation logic ...
                 String userIdStr = (String) message.get("userId");
                 String username = (String) message.get("username");
                 String name = (String) message.get("name");
@@ -49,6 +50,18 @@ public class AuthSyncConsumer {
                         log.info("Synced new user from Auth Service: {}", username);
                     } else {
                         log.debug("User {} already exists, skipping sync.", username);
+                    }
+                }
+            } else if ("delete_user".equals(action)) {
+                // --- NEW DELETION LOGIC ---
+                String userIdStr = (String) message.get("userId");
+                if (userIdStr != null) {
+                    UUID userId = UUID.fromString(userIdStr);
+                    if (userRepository.existsById(userId)) {
+                        userRepository.deleteById(userId);
+                        log.info("Synced deletion: Removed profile for user ID {}", userId);
+                    } else {
+                        log.warn("Synced deletion: User profile not found for ID {}", userId);
                     }
                 }
             }
