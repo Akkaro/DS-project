@@ -338,6 +338,8 @@
                 allDevices = [];
                 adminUsersMap.clear();
                 
+                if (stompClient && stompClient.connected) return;
+
                 if (stompClient) {
                     stompClient.disconnect();
                     stompClient = null;
@@ -355,7 +357,7 @@
                 loginButton.textContent = 'Logging in...';
             
                 // Update global username variable
-                username = document.getElementById('login-username').value;
+                const username = document.getElementById('login-username').value;
                 const password = document.getElementById('login-password').value;
             
                 try {
@@ -564,90 +566,107 @@
                 const history = conversations.get(cId)?.msgs || [];
                 history.forEach(m => appendMessage(m.sender, m.content, m.align));
             }
-            // --- WebSocket & Chat Logic ---
-        
-            function setChatMode(isAdmin) {
-                chatWithAdmin = isAdmin;
-            
-                if (isAdmin) {
-                    modeAdminBtn.className = "flex-1 py-1 rounded bg-white text-blue-800 font-semibold transition shadow";
-                    modeBotBtn.className = "flex-1 py-1 rounded text-blue-100 hover:text-white transition";
-                    appendSystemLog("Switched to Admin Chat. An agent will be with you shortly.");
-                } else {
-                    modeBotBtn.className = "flex-1 py-1 rounded bg-white text-blue-800 font-semibold transition shadow";
-                    modeAdminBtn.className = "flex-1 py-1 rounded text-blue-100 hover:text-white transition";
-                    appendSystemLog("Switched to Support Bot (Automated).");
-                }
-            }
         
             function connectWebSocket() {
-                const socket = new SockJS('/ws'); 
+                // Prevent double connections
+                if (stompClient && stompClient.connected) return;
+
+                const socket = new SockJS('/ws');
                 stompClient = Stomp.over(socket);
-                stompClient.debug = null; 
-            
-                stompClient.connect({}, function (frame) {
+                stompClient.debug = null;
+
+                stompClient.connect({}, () => {
                     console.log('Connected to WebSocket');
-                    
-                    // 1. Subscribe to User's Personal Topic (Handles Chat Replies & Notifications)
-                    const topicPath = '/topic/user/' + userId;
-                    
-                    stompClient.subscribe(topicPath, function (msg) {
-                        // Check if it is a Notification (String)
-                        if (msg.body.startsWith("NOTIFICATION:")) {
-                            const text = msg.body.replace("NOTIFICATION: ", "");
-                            showModal("System Alert", text, true);
-                            return;
-                        }
-                    
-                        // Check if it is a Chat Message (JSON)
-                        try {
-                            const body = JSON.parse(msg.body);
-                            if (body.sender && body.content) {
-                                appendMessage(body.sender, body.content, 'left');
-                            }
-                        } catch (e) {
-                            console.error("Failed to parse message:", msg.body);
-                        }
-                    });
                 
-                    // 2. If User is ADMIN, also subscribe to Global Admin Topic
-                    if (userRole === 'ADMIN') {
-                        stompClient.subscribe('/topic/admin', function (msg) {
+                    /* ----------------------------------
+                       CLIENT: personal topic
+                    ---------------------------------- */
+                    if (userRole === 'CLIENT') {
+                        const userTopic = `/topic/user/${userId}`;
+                    
+                        stompClient.subscribe(userTopic, (msg) => {
+                            // Notifications (plain text)
+                            if (msg.body.startsWith("NOTIFICATION:")) {
+                                const text = msg.body.replace("NOTIFICATION: ", "");
+                                showModal("System Alert", text, true);
+                                return;
+                            }
+                        
+                            // Chat message (JSON)
                             try {
                                 const body = JSON.parse(msg.body);
-                                // Avoid echoing messages sent by myself
-                                if (body.sender === 'Admin') return; 
-                            
-                                const label = body.sender + " (Client)";
-                                appendMessage(label, body.content, 'left');
-                            } catch(e) {}
+                                if (body.sender && body.content) {
+                                    appendMessage(body.sender, body.content, 'left');
+                                }
+                            } catch (e) {
+                                console.error("Invalid message:", msg.body);
+                            }
                         });
                     }
-                    
+                
+                    /* ----------------------------------
+                       ADMIN: global inbox topic
+                    ---------------------------------- */
+                    if (userRole === 'ADMIN') {
+                        stompClient.subscribe('/topic/admin', (msg) => {
+                            try {
+                                handleAdminIncoming(msg);
+                            } catch (e) {
+                                console.error("Admin message error:", e);
+                            }
+                        });
+                    }
+                
+                    // Show chat toggle once connected
                     chatToggleBtn.classList.remove('hidden');
                 
-                }, function(error) {
+                }, (error) => {
                     console.error('WebSocket Error:', error);
                 });
             }
-        
+
             function sendMessage() {
                 const content = chatInput.value.trim();
-                
-                if (content && stompClient && userId) {
-                    const chatMessage = {
-                        sender: userRole === 'ADMIN' ? 'Admin' : username, 
+                if (!content || !stompClient || !stompClient.connected) return;
+            
+                let chatMessage;
+            
+                /* ----------------------------------
+                   CLIENT → ADMIN
+                ---------------------------------- */
+                if (userRole === 'CLIENT') {
+                    chatMessage = {
+                        sender: username,
                         content: content,
-                        userId: userId,
-                        chatWithAdmin: chatWithAdmin 
+                        userId: userId              // sender (client) ID
                     };
-                    
-                    stompClient.send("/app/chat", {}, JSON.stringify(chatMessage));
-                    
-                    appendMessage("Me", content, 'right');
-                    chatInput.value = '';
                 }
+            
+                /* ----------------------------------
+                   ADMIN → CLIENT
+                ---------------------------------- */
+                if (userRole === 'ADMIN') {
+                    if (!activeChatUserId) {
+                        alert("Select a client first");
+                        return;
+                    }
+                
+                    chatMessage = {
+                        sender: 'Admin',
+                        content: content,
+                        targetUserId: activeChatUserId   // receiver (client) ID
+                    };
+                }
+            
+                // Send message
+                stompClient.send("/app/chat", {}, JSON.stringify(chatMessage));
+            
+                // Show message instantly in UI
+                appendMessage("Me", content, 'right');
+            
+                chatInput.value = '';
             }
+
         
             function appendMessage(sender, text, align) {
                 const div = document.createElement('div');
