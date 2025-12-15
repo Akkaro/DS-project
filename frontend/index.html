@@ -6,6 +6,8 @@
     <title>Energy Management System</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -213,6 +215,33 @@
         </div>
     </div>
 
+    <button id="chat-toggle-btn" class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg transition z-50 hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+    </button>
+
+    <div id="chat-window" class="fixed bottom-24 right-6 w-80 bg-white rounded-lg shadow-2xl border border-slate-200 hidden z-50 flex flex-col overflow-hidden font-sans">
+        
+        <div class="bg-blue-600 text-white p-3">
+            <div class="flex justify-between items-center">
+                <span class="font-bold">Support Chat</span>
+                <button id="chat-close-btn" class="text-blue-100 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            
+            <div id="chat-header-content" class="mt-2"></div>
+        </div>
+        
+        <div id="chat-messages" class="flex-1 h-64 overflow-y-auto p-3 space-y-2 bg-slate-50 text-sm">
+            <div class="text-center text-slate-400 text-xs mt-2">Connecting...</div>
+        </div>
+        
+        <div id="chat-input-area" class="p-3 bg-white border-t flex gap-2">
+            <input type="text" id="chat-input" class="flex-1 border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500" placeholder="Type a message...">
+            <button id="chat-send-btn" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">Send</button>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             
@@ -221,19 +250,29 @@
             let accessToken = null;
             let userRole = null;
             let userId = null;
-
+            let username = null; // FIXED: Global variable for chat sender
+        
             // --- App-wide State ---
             let allUsers = [];
             let allDevices = [];
             let adminUsersMap = new Map();
             let currentChart = null;
             let currentDeviceId = null;
+        
+            // --- WebSocket & Chat State ---
+            let stompClient = null;
+            let chatWithAdmin = false; // false = Bot Mode, true = Admin Mode
+            
+            // NEW: Admin Chat State
+            let activeChatUserId = null; 
+            let conversations = new Map(); 
+            let unreadCounts = new Map();
 
             // --- Element Selectors ---
             const loginView = document.getElementById('login-view');
             const adminView = document.getElementById('admin-view');
             const clientView = document.getElementById('client-view');
-
+        
             const loginForm = document.getElementById('form-login');
             const loginError = document.getElementById('login-error');
             const loginButton = document.getElementById('login-submit-btn');
@@ -246,16 +285,22 @@
             const adminAssignDeviceSelect = document.getElementById('assign-device-id');
             const adminAssignUserSelect = document.getElementById('assign-user-id');
             const adminLogoutBtn = document.getElementById('logout-btn-admin');
-
+        
             const clientDeviceList = document.getElementById('list-client-devices');
             const clientLogoutBtn = document.getElementById('logout-btn-client');
-
+        
             const modalBackdrop = document.getElementById('modal-backdrop');
             const modalContent = document.getElementById('modal-content');
             const modalTitle = document.getElementById('modal-title');
             const modalMessage = document.getElementById('modal-message');
             const modalCloseBtn = document.getElementById('modal-close-btn');
-
+        
+            // Chat Selectors
+            const chatWindow = document.getElementById('chat-window');
+            const chatToggleBtn = document.getElementById('chat-toggle-btn');
+            const chatMessages = document.getElementById('chat-messages');
+            const chatInput = document.getElementById('chat-input');
+        
             // --- View Management ---
             function showView(viewId) {
                 loginView.classList.add('hidden');
@@ -267,9 +312,9 @@
                     view.classList.remove('hidden');
                 }
             }
-
+        
             // --- Auth & Token Functions ---
-
+        
             function parseJwt(token) {
                 try {
                     const base64Url = token.split('.')[1];
@@ -283,37 +328,47 @@
                     return null;
                 }
             }
-
+        
             function handleLogout() {
                 accessToken = null;
                 userRole = null;
                 userId = null;
+                username = null;
                 allUsers = [];
                 allDevices = [];
                 adminUsersMap.clear();
+                
+                if (stompClient) {
+                    stompClient.disconnect();
+                    stompClient = null;
+                }
+                chatWindow.classList.add('hidden');
+                chatToggleBtn.classList.add('hidden');
+                
                 showView('login-view');
             }
-
+        
             async function handleLogin(e) {
                 e.preventDefault();
                 loginError.textContent = '';
                 loginButton.disabled = true;
                 loginButton.textContent = 'Logging in...';
-
-                const username = document.getElementById('login-username').value;
+            
+                // Update global username variable
+                username = document.getElementById('login-username').value;
                 const password = document.getElementById('login-password').value;
-
+            
                 try {
                     const response = await fetch(`${API_BASE}/auth/login`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ username, password })
                     });
-
+                
                     if (!response.ok) {
                         throw new Error('Invalid username or password.');
                     }
-
+                
                     const data = await response.json();
                     accessToken = data.accessToken;
                     
@@ -324,9 +379,14 @@
                     
                     userRole = tokenData.role;
                     userId = tokenData.userId;
-
+                    
                     loginForm.reset();
-
+                
+                    // Connect to WebSocket after successful login
+                    connectWebSocket();
+                    
+                    setupChatUI();
+                    
                     if (userRole === 'ADMIN') {
                         showView('admin-view');
                         loadAdminData();
@@ -336,7 +396,7 @@
                     } else {
                         throw new Error('Unknown user role.');
                     }
-
+                
                 } catch (error) {
                     loginError.textContent = error.message;
                 } finally {
@@ -344,8 +404,278 @@
                     loginButton.textContent = 'Login';
                 }
             }
+            
+            // --- UI Setup Logic ---
+            function setupChatUI() {
+                const headerContent = document.getElementById('chat-header-content');
+                const chatMessages = document.getElementById('chat-messages');
+                const inputArea = document.getElementById('chat-input-area');
+                
+                // Clear header to prevent duplicates
+                headerContent.innerHTML = '';
 
-            // --- API Fetch Wrapper (Handles Auth) ---
+                if (userRole === 'ADMIN') {
+                    // ADMIN VIEW
+                    // 1. Hide Input initially
+                    inputArea.classList.add('hidden');
+                    
+                    // 2. Set default message
+                    chatMessages.innerHTML = '<div class="text-center text-slate-400 text-xs mt-2">Waiting for client messages...</div>';
+                    
+                    // 3. Add Back Button (Hidden by default)
+                    headerContent.innerHTML = `<button id="btn-back-inbox" class="w-full py-1 rounded bg-blue-700 text-white text-xs font-bold hidden hover:bg-blue-800 transition">← Back to Inbox</button>`;
+                    
+                    // 4. Bind Back Button Event
+                    document.getElementById('btn-back-inbox').addEventListener('click', renderAdminInbox);
+                    
+                    // 5. Render Inbox
+                    renderAdminInbox();
+
+                } else {
+                    // CLIENT VIEW
+                    // 1. Show Input
+                    inputArea.classList.remove('hidden');
+
+                    // 2. Inject Bot/Admin Toggles
+                    headerContent.innerHTML = `
+                        <div class="flex bg-blue-700 rounded p-1 text-xs">
+                            <button id="mode-bot" class="flex-1 py-1 rounded bg-white text-blue-800 font-semibold shadow transition">Bot (AI)</button>
+                            <button id="mode-admin" class="flex-1 py-1 rounded text-blue-100 hover:text-white transition">Admin</button>
+                        </div>`;
+                    
+                    // 3. Bind Events dynamically (NOW IT IS SAFE)
+                    document.getElementById('mode-bot').addEventListener('click', () => setClientChatMode(false));
+                    document.getElementById('mode-admin').addEventListener('click', () => setClientChatMode(true));
+                    
+                    // 4. Set Default State
+                    setClientChatMode(false); 
+                }
+            }
+
+            // --- CLIENT Logic ---
+            function setClientChatMode(isAdmin) {
+                chatWithAdmin = isAdmin;
+                const btnBot = document.getElementById('mode-bot');
+                const btnAdmin = document.getElementById('mode-admin');
+                
+                // Safety check in case elements aren't in DOM yet
+                if (!btnBot || !btnAdmin) return;
+
+                if (isAdmin) {
+                    // Admin Active
+                    btnAdmin.className = "flex-1 py-1 rounded bg-white text-blue-800 font-semibold shadow transition";
+                    btnBot.className = "flex-1 py-1 rounded text-blue-100 hover:text-white transition";
+                    appendSystemLog("Switched to Admin Chat.");
+                } else {
+                    // Bot Active
+                    btnBot.className = "flex-1 py-1 rounded bg-white text-blue-800 font-semibold shadow transition";
+                    btnAdmin.className = "flex-1 py-1 rounded text-blue-100 hover:text-white transition";
+                    appendSystemLog("Switched to Support Bot.");
+                }
+            }
+
+            // --- ADMIN Incoming Message Logic ---
+            function handleAdminIncoming(msg) {
+                try {
+                    const body = JSON.parse(msg.body);
+                    
+                    // 1. Ignore my own messages (echo prevention)
+                    if (body.sender === 'Admin') return;
+
+                    const clientID = body.userId;
+                    
+                    // 2. Initialize conversation if it doesn't exist
+                    if (!conversations.has(clientID)) {
+                        conversations.set(clientID, { name: body.sender, msgs: [] });
+                    }
+                    
+                    // 3. Add message to local history
+                    const conversation = conversations.get(clientID);
+                    conversation.msgs.push({ 
+                        sender: body.sender, 
+                        content: body.content, 
+                        align: 'left' 
+                    });
+
+                    // 4. Update UI
+                    if (activeChatUserId === clientID) {
+                        // If I am currently chatting with this user, show the message immediately
+                        appendMessage(body.sender, body.content, 'left'); 
+                    } else {
+                        // Otherwise, increment unread count
+                        const currentCount = unreadCounts.get(clientID) || 0;
+                        unreadCounts.set(clientID, currentCount + 1);
+                        
+                        // If I am looking at the inbox, refresh it to show the unread badge
+                        if (!activeChatUserId) {
+                            renderAdminInbox(); 
+                        }
+                    }
+                } catch(e) { 
+                    console.error("Error handling incoming admin message:", e); 
+                }
+            }
+
+            // --- Admin Inbox Logic ---
+            function renderAdminInbox() {
+                activeChatUserId = null; 
+                
+                // Hide Back Button & Input Area
+                document.getElementById('btn-back-inbox').classList.add('hidden');
+                document.getElementById('chat-input-area').classList.add('hidden'); 
+                
+                const chatMessages = document.getElementById('chat-messages');
+                chatMessages.innerHTML = ''; 
+
+                if (conversations.size === 0) {
+                    chatMessages.innerHTML = '<div class="text-center text-slate-400 text-xs mt-4">No active conversations.</div>';
+                    return;
+                }
+
+                const list = document.createElement('div');
+                list.className = "space-y-2";
+
+                conversations.forEach((data, cId) => {
+                    const unread = unreadCounts.get(cId) || 0;
+                    const item = document.createElement('div');
+                    item.className = "p-3 bg-slate-100 rounded cursor-pointer hover:bg-blue-50 flex justify-between items-center transition";
+                    item.innerHTML = `
+                        <div class="font-semibold text-sm text-slate-800">${data.name || 'Client'}</div>
+                        ${unread > 0 ? `<span class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">${unread}</span>` : '<span class="text-xs text-slate-400">Open</span>'}
+                    `;
+                    item.onclick = () => openAdminChat(cId);
+                    list.appendChild(item);
+                });
+
+                chatMessages.appendChild(list);
+            }
+
+            function openAdminChat(cId) {
+                activeChatUserId = cId;
+                unreadCounts.set(cId, 0); 
+                
+                // Show Back Button & Input Area
+                document.getElementById('btn-back-inbox').classList.remove('hidden');
+                document.getElementById('chat-input-area').classList.remove('hidden'); 
+                
+                const chatMessages = document.getElementById('chat-messages');
+                chatMessages.innerHTML = ''; 
+
+                const history = conversations.get(cId)?.msgs || [];
+                history.forEach(m => appendMessage(m.sender, m.content, m.align));
+            }
+            // --- WebSocket & Chat Logic ---
+        
+            function setChatMode(isAdmin) {
+                chatWithAdmin = isAdmin;
+            
+                if (isAdmin) {
+                    modeAdminBtn.className = "flex-1 py-1 rounded bg-white text-blue-800 font-semibold transition shadow";
+                    modeBotBtn.className = "flex-1 py-1 rounded text-blue-100 hover:text-white transition";
+                    appendSystemLog("Switched to Admin Chat. An agent will be with you shortly.");
+                } else {
+                    modeBotBtn.className = "flex-1 py-1 rounded bg-white text-blue-800 font-semibold transition shadow";
+                    modeAdminBtn.className = "flex-1 py-1 rounded text-blue-100 hover:text-white transition";
+                    appendSystemLog("Switched to Support Bot (Automated).");
+                }
+            }
+        
+            function connectWebSocket() {
+                const socket = new SockJS('/ws'); 
+                stompClient = Stomp.over(socket);
+                stompClient.debug = null; 
+            
+                stompClient.connect({}, function (frame) {
+                    console.log('Connected to WebSocket');
+                    
+                    // 1. Subscribe to User's Personal Topic (Handles Chat Replies & Notifications)
+                    const topicPath = '/topic/user/' + userId;
+                    
+                    stompClient.subscribe(topicPath, function (msg) {
+                        // Check if it is a Notification (String)
+                        if (msg.body.startsWith("NOTIFICATION:")) {
+                            const text = msg.body.replace("NOTIFICATION: ", "");
+                            showModal("System Alert", text, true);
+                            return;
+                        }
+                    
+                        // Check if it is a Chat Message (JSON)
+                        try {
+                            const body = JSON.parse(msg.body);
+                            if (body.sender && body.content) {
+                                appendMessage(body.sender, body.content, 'left');
+                            }
+                        } catch (e) {
+                            console.error("Failed to parse message:", msg.body);
+                        }
+                    });
+                
+                    // 2. If User is ADMIN, also subscribe to Global Admin Topic
+                    if (userRole === 'ADMIN') {
+                        stompClient.subscribe('/topic/admin', function (msg) {
+                            try {
+                                const body = JSON.parse(msg.body);
+                                // Avoid echoing messages sent by myself
+                                if (body.sender === 'Admin') return; 
+                            
+                                const label = body.sender + " (Client)";
+                                appendMessage(label, body.content, 'left');
+                            } catch(e) {}
+                        });
+                    }
+                    
+                    chatToggleBtn.classList.remove('hidden');
+                
+                }, function(error) {
+                    console.error('WebSocket Error:', error);
+                });
+            }
+        
+            function sendMessage() {
+                const content = chatInput.value.trim();
+                
+                if (content && stompClient && userId) {
+                    const chatMessage = {
+                        sender: userRole === 'ADMIN' ? 'Admin' : username, 
+                        content: content,
+                        userId: userId,
+                        chatWithAdmin: chatWithAdmin 
+                    };
+                    
+                    stompClient.send("/app/chat", {}, JSON.stringify(chatMessage));
+                    
+                    appendMessage("Me", content, 'right');
+                    chatInput.value = '';
+                }
+            }
+        
+            function appendMessage(sender, text, align) {
+                const div = document.createElement('div');
+                div.className = `max-w-[80%] p-2 rounded-lg text-sm mb-2 ${
+                    align === 'right' 
+                    ? 'bg-blue-100 text-blue-900 ml-auto rounded-br-none' 
+                    : 'bg-white border border-slate-200 text-slate-800 mr-auto rounded-bl-none'
+                }`;
+                div.innerHTML = `<div class="font-bold opacity-75 text-xs mb-1">${sender}</div><div>${text}</div>`;
+                chatMessages.appendChild(div);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        
+            function appendSystemLog(text) {
+                const div = document.createElement('div');
+                div.className = "text-center text-slate-400 text-xs my-2 italic";
+                div.innerText = text;
+                chatMessages.appendChild(div);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        
+            // --- Chat Event Listeners ---
+            chatToggleBtn.addEventListener('click', () => chatWindow.classList.toggle('hidden'));
+            document.getElementById('chat-close-btn').addEventListener('click', () => chatWindow.classList.add('hidden'));
+            document.getElementById('chat-send-btn').addEventListener('click', sendMessage);
+            chatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+        
+            // --- API Fetch Wrapper ---
             async function fetchApi(url, options = {}) {
                 const headers = {
                     ...options.headers,
@@ -355,9 +685,9 @@
                 if (accessToken) {
                     headers['Authorization'] = `Bearer ${accessToken}`;
                 }
-
+            
                 const response = await fetch(url, { ...options, headers });
-
+            
                 if (response.status === 401 || response.status === 403) {
                     handleLogout();
                     throw new Error('Unauthorized');
@@ -371,10 +701,10 @@
                 if (response.status === 201 || response.status === 204) {
                     return null;
                 }
-
+            
                 return await response.json();
             }
-
+        
             // --- Modal Helper Functions ---
             function showModal(title, message, isError = false) {
                 modalTitle.textContent = title;
@@ -382,11 +712,11 @@
                 modalContent.classList.toggle('border-l-4', isError);
                 modalContent.classList.toggle('border-red-500', isError);
                 modalContent.classList.toggle('border-green-500', !isError);
-
+            
                 modalBackdrop.classList.remove('opacity-0', 'pointer-events-none');
                 modalContent.classList.remove('scale-95', 'opacity-0');
             }
-
+        
             function hideModal() {
                 modalBackdrop.classList.add('opacity-0', 'pointer-events-none');
                 modalContent.classList.add('scale-95', 'opacity-0');
@@ -395,8 +725,8 @@
             modalBackdrop.addEventListener('click', (e) => {
                 if (e.target === modalBackdrop) hideModal();
             });
-
-
+        
+        
             // --- ADMIN VIEW: Data Loading and Rendering ---
             
             async function loadAdminData() {
@@ -405,9 +735,9 @@
                         fetchApi(`${API_BASE}/users`),
                         fetchApi(`${API_BASE}/devices`)
                     ]);
-
+                
                     adminUsersMap = new Map(allUsers.map(u => [u.id, u.name]));
-
+                
                     renderAdminUserList(allUsers);
                     renderAdminDeviceList(allDevices, adminUsersMap);
                     populateAdminDropdowns(allUsers, allDevices);
@@ -441,7 +771,7 @@
                     adminUserList.appendChild(li);
                 });
             }
-
+        
             function renderAdminDeviceList(devices, usersMap) {
                 adminDeviceList.innerHTML = '';
                 if (!devices || devices.length === 0) {
@@ -454,7 +784,7 @@
                     
                     const unassignButton = device.userId ? 
                         `<button data-id="${device.id}" class="unassign-device-btn text-yellow-600 hover:text-yellow-800 font-medium">Unassign</button>` : '';
-
+                
                     const li = document.createElement('li');
                     li.className = 'flex justify-between items-center bg-slate-50 p-3 rounded-lg shadow-sm';
                     li.innerHTML = `
@@ -471,7 +801,7 @@
                     adminDeviceList.appendChild(li);
                 });
             }
-
+        
             function populateAdminDropdowns(users, devices) {
                 adminAssignUserSelect.innerHTML = '<option value="">Select a user</option>';
                 users.forEach(user => {
@@ -480,7 +810,7 @@
                     option.textContent = `${user.name} (${user.username})`;
                     adminAssignUserSelect.appendChild(option);
                 });
-
+            
                 const unassignedDevices = devices.filter(d => !d.userId);
                 adminAssignDeviceSelect.innerHTML = '<option value="">Select an unassigned device</option>';
                 unassignedDevices.forEach(device => {
@@ -490,7 +820,7 @@
                     adminAssignDeviceSelect.appendChild(option);
                 });
             }
-
+        
             // --- CLIENT VIEW: Data Loading and Rendering ---
             async function loadClientData() {
                 if (!userId) {
@@ -507,7 +837,7 @@
                     }
                 }
             }
-
+        
             function renderClientDeviceList(devices) {
                 clientDeviceList.innerHTML = '';
                 if (!devices || devices.length === 0) {
@@ -546,7 +876,7 @@
             }
             
             // --- Update Modal Functions ---
-
+        
             function showUpdateUserModal(user) {
                 const formHtml = `
                     <form id="form-update-user" class="space-y-4">
@@ -582,12 +912,12 @@
                 `;
                 
                 showModal(`Update User: ${user.name}`, formHtml);
-
+                
                 document.getElementById('form-update-user').addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const formData = new FormData(e.target);
                     const data = Object.fromEntries(formData.entries());
-
+                
                     if (!data.password) {
                         data.password = null;
                     }
@@ -689,7 +1019,7 @@
                 if (e.target === chartModalBackdrop) closeChartModal();
             });
             chartDateInput.addEventListener('change', fetchAndRenderChart);
-
+        
             function showUpdateDeviceModal(device) {
                 const formHtml = `
                     <form id="form-update-device" class="space-y-4">
@@ -726,14 +1056,14 @@
                 `;
                 
                 showModal(`Update Device: ${device.name}`, formHtml);
-
+                
                 document.getElementById('form-update-device').addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const formData = new FormData(e.target);
                     const data = Object.fromEntries(formData.entries());
                     data.maxConsumption = parseFloat(data.maxConsumption);
                     data.userId = device.userId;
-
+                
                     try {
                         await fetchApi(`${API_BASE}/devices/${device.id}`, {
                             method: 'PUT',
@@ -747,18 +1077,18 @@
                     }
                 });
             }
-
-
+        
+        
             loginForm.addEventListener('submit', handleLogin);
             adminLogoutBtn.addEventListener('click', handleLogout);
             clientLogoutBtn.addEventListener('click', handleLogout);
-
+        
             // --- ADMIN Event Listeners (Forms) ---
             adminUserForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const formData = new FormData(adminUserForm);
                 const data = Object.fromEntries(formData.entries());
-
+            
                 try {
                     await fetchApi(`${API_BASE}/auth/register`, {
                         method: 'POST',
@@ -771,13 +1101,13 @@
                     showModal('Error', error.message, true);
                 }
             });
-
+        
             adminDeviceForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const formData = new FormData(adminDeviceForm);
                 const data = Object.fromEntries(formData.entries());
                 data.maxConsumption = parseFloat(data.maxConsumption);
-
+            
                 try {
                     await fetchApi(`${API_BASE}/devices`, {
                         method: 'POST',
@@ -790,17 +1120,17 @@
                     showModal('Error', error.message, true);
                 }
             });
-
+        
             adminAssignForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const deviceId = adminAssignDeviceSelect.value;
                 const userId = adminAssignUserSelect.value;
-
+            
                 if (!deviceId || !userId) {
                     showModal('Warning', 'Please select both a device and a user.', true);
                     return;
                 }
-
+            
                 try {
                     await fetchApi(`${API_BASE}/devices/${deviceId}/assign/${userId}`, { method: 'PUT' });
                     showModal('Success', 'Device assigned successfully!');
@@ -810,12 +1140,12 @@
                     showModal('Error', error.message, true);
                 }
             });
-
+        
             // --- ADMIN Event Listeners (Event Delegation for Lists) ---
             adminUserList.addEventListener('click', async (e) => {
                 const target = e.target;
                 const userId = target.dataset.id;
-
+            
                 if (target.classList.contains('delete-user-btn')) {
                     if (!confirm('Are you sure you want to delete this user?')) return;
                     try {
@@ -826,7 +1156,7 @@
                         showModal('Error', error.message, true);
                     }
                 }
-
+            
                 if (target.classList.contains('update-user-btn')) {
                     const user = allUsers.find(u => u.id === userId);
                     if (user) {
@@ -834,11 +1164,11 @@
                     }
                 }
             });
-
+        
             adminDeviceList.addEventListener('click', async (e) => {
                 const target = e.target;
                 const deviceId = target.dataset.id;
-
+            
                 if (target.classList.contains('delete-device-btn')) {
                     if (!confirm('Are you sure you want to delete this device?')) return;
                     try {
@@ -856,7 +1186,7 @@
                         showUpdateDeviceModal(device);
                     }
                 }
-
+            
                 if (target.classList.contains('unassign-device-btn')) {
                     if (!confirm('Are you sure you want to unassign this device?')) return;
                     try {
@@ -868,7 +1198,7 @@
                     }
                 }
             });
-
+        
             showView('login-view');
         });
     </script>

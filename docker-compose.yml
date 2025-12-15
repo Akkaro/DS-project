@@ -5,9 +5,8 @@ services:
   # DATABASE SERVICES
   # ==========================================
   user-db:
-    image: postgres:latest
-    container_name: user-db
-    restart: always
+    image: postgres:15
+    hostname: user-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: root
@@ -18,16 +17,13 @@ services:
       - user-db-data:/var/lib/postgresql/data
     networks:
       - ems-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d user_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
 
   device-db:
-    image: postgres:latest
-    container_name: device-db
-    restart: always
+    image: postgres:15
+    hostname: device-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: root
@@ -38,36 +34,13 @@ services:
       - device-db-data:/var/lib/postgresql/data
     networks:
       - ems-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d device_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  auth-db:
-    image: postgres:latest
-    container_name: auth-db
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root
-      POSTGRES_DB: auth_db
-    ports:
-      - "5435:5432"
-    volumes:
-      - auth-db-data:/var/lib/postgresql/data
-    networks:
-      - ems-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d auth_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
 
   monitoring-db:
-    image: postgres:latest
-    container_name: monitoring-db
-    restart: always
+    image: postgres:15
+    hostname: monitoring-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: root
@@ -78,21 +51,53 @@ services:
       - monitoring-db-data:/var/lib/postgresql/data
     networks:
       - ems-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d monitoring_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  auth-db:
+    image: postgres:15
+    hostname: auth-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: auth_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    networks:
+      - ems-network
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  # ==========================================
+  # BROKER
+  # ==========================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - ems-network
+    deploy:
+      restart_policy:
+        condition: on-failure
 
   # ==========================================
   # MICROSERVICES
   # ==========================================
   user-service:
+    image: my-user-service:latest
     build:
       context: ./user_microservice/demo
       dockerfile: ./Dockerfile
-    container_name: user-service
-    restart: always
     environment:
       - DB_IP=user-db
       - DB_PORT=5432
@@ -101,29 +106,20 @@ services:
       - DB_PASSWORD=root
       - PORT=8080
       - SPRING_RABBITMQ_HOST=rabbitmq
-      - SPRING_RABBITMQ_PORT=5672
-      - SPRING_RABBITMQ_USERNAME=guest
-      - SPRING_RABBITMQ_PASSWORD=guest
     depends_on:
-      user-db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - user-db
+      - rabbitmq
     networks:
       - ems-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://user-service:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    deploy:
+      restart_policy:
+        condition: on-failure
 
   device-service:
+    image: my-device-service:latest
     build:
       context: ./device_microservice/demo
       dockerfile: ./Dockerfile
-    container_name: device-service
-    restart: always
     environment:
       - DB_IP=device-db
       - DB_PORT=5432
@@ -132,29 +128,20 @@ services:
       - DB_PASSWORD=root
       - PORT=8080
       - SPRING_RABBITMQ_HOST=rabbitmq
-      - SPRING_RABBITMQ_PORT=5672
-      - SPRING_RABBITMQ_USERNAME=guest
-      - SPRING_RABBITMQ_PASSWORD=guest
     depends_on:
-      device-db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - device-db
+      - rabbitmq
     networks:
       - ems-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://device-service:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    deploy:
+      restart_policy:
+        condition: on-failure
 
   auth-service:
+    image: my-auth-service:latest
     build:
       context: ./auth_microservice/demo
       dockerfile: ./Dockerfile
-    container_name: auth-service
-    restart: always
     environment:
       - DB_IP=auth-db
       - DB_PORT=5432
@@ -164,17 +151,53 @@ services:
       - PORT=8082
       - app_user-service_url=http://user-service:8080
     depends_on:
-      auth-db:
-        condition: service_healthy
+      - auth-db
     networks:
       - ems-network
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  # ==========================================
+  # ASSIGNMENT 3 NEW SERVICES
+  # ==========================================
+  
+  chat-service:
+    image: my-chat-service:latest
+    build:
+      context: ./chat_microservice
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - PORT=8084
+    depends_on:
+      - rabbitmq
+    networks:
+      - ems-network
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  load-balancer:
+    image: my-load-balancer:latest
+    build:
+      context: ./load_balancer
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - app.queue.input=sensor.data.queue
+      - PORT=8085
+    depends_on:
+      - rabbitmq
+    networks:
+      - ems-network
+    deploy:
+      restart_policy:
+        condition: on-failure
 
   monitoring-service:
+    image: my-monitoring-service:latest
     build:
       context: ./monitoring_microservice
-      dockerfile: ./Dockerfile
-    container_name: monitoring-service
-    restart: always
+    hostname: "monitoring-{{.Task.Slot}}"
     environment:
       - DB_IP=monitoring-db
       - DB_PORT=5432
@@ -182,18 +205,20 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=root
       - SPRING_RABBITMQ_HOST=rabbitmq
-      - SPRING_RABBITMQ_PORT=5672
+      # We remove the hardcoded queue name env var
       - PORT=8083
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
     depends_on:
-      rabbitmq:
-        condition: service_healthy
-      monitoring-db:
-        condition: service_healthy
+      - monitoring-db
+      - rabbitmq
     networks:
       - ems-network
 
   # ==========================================
-  # FRONTEND
+  # FRONTEND & GATEWAY
   # ==========================================
   frontend:
     image: nginx:latest
@@ -203,52 +228,12 @@ services:
       - ./frontend:/usr/share/nginx/html:ro
     networks:
       - ems-network
+    deploy:
+      restart_policy:
+        condition: on-failure
 
-  # ==========================================
-  # RabbitMQ
-  # ==========================================
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    networks:
-      - ems-network
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ==========================================
-  # Device Simulator
-  # ==========================================
-  device-simulator:
-    build:
-      context: ./device_simulator
-      dockerfile: ./Dockerfile
-    container_name: device-simulator
-    restart: always
-    environment:
-      - SPRING_RABBITMQ_HOST=rabbitmq
-      - DEVICE_ID=0134b955-8826-460b-90ba-dcdde838c14a
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - ems-network
-
-  # ==========================================
-  # REVERSE PROXY (ENTRY POINT)
-  # ==========================================
   traefik:
     image: traefik:v3.0
-    container_name: traefik
-    restart: always
     ports:
       - "8000:80"
       - "8081:8080"
@@ -256,32 +241,51 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./reverse_proxy/traefik.yml:/etc/traefik/traefik.yml:ro"
       - "./reverse_proxy/dynamic:/etc/traefik/dynamic:ro"
-      - "./reverse_proxy/logs:/var/log/traefik"
-    depends_on:
-      - user-service
-      - device-service
-      - auth-service
-      - frontend
     networks:
       - ems-network
+    deploy:
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
 
-# ==========================================
-# VOLUMES
-# ==========================================
+  device-simulator-1:
+    image: my-device-simulator:latest
+    build:
+      context: ./device_simulator
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      # This ID usually hashes to Index 0 (example)
+      - DEVICE_ID=74086887-2262-4594-9354-d5d4b68b3510
+    networks:
+      - ems-network
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  # Simulator 2 (New)
+  device-simulator-2:
+    image: my-device-simulator:latest
+    # Reuse the same build context/image
+    build:
+      context: ./device_simulator
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      # Different ID to target a different queue
+      - DEVICE_ID=8b2fcd2e-4537-4f9b-be09-a5c3b9c6ae98
+    networks:
+      - ems-network
+    deploy:
+      restart_policy:
+        condition: on-failure
+
 volumes:
   user-db-data:
-    driver: local
   device-db-data:
-    driver: local
   auth-db-data:
-    driver: local
   monitoring-db-data:
-    driver: local
 
-# ==========================================
-# NETWORKS
-# ==========================================
 networks:
   ems-network:
-    driver: bridge
-    name: ems-network
+    driver: overlay

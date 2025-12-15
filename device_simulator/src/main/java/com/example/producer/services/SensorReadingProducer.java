@@ -16,6 +16,10 @@ import java.util.UUID;
 public class SensorReadingProducer {
 
     private final RabbitTemplate rabbitTemplate;
+
+    // Inject the ID from the environment variable (defined in docker-compose)
+    @Value("${DEVICE_ID}")
+    private UUID configuredDeviceId;
     
     private String csvFileName = "sensor.csv";
 
@@ -85,7 +89,9 @@ public class SensorReadingProducer {
             }
 
             long timestamp = Long.parseLong(parts[0].trim());
-            UUID deviceId = UUID.fromString(parts[1].trim());
+            // OLD: UUID deviceId = UUID.fromString(parts[1].trim());
+            // NEW: Use the configured ID from Docker
+            UUID deviceId = configuredDeviceId;
             double measurement = Double.parseDouble(parts[2].trim());
 
             SensorDataDTO data = new SensorDataDTO(timestamp, deviceId, measurement);

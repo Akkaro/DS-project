@@ -37,6 +37,12 @@ http:
         - web
       service: monitoring-service
 
+    chat-service:
+      rule: "Host(`localhost`) && PathPrefix(`/ws`)"
+      entryPoints:
+        - web
+      service: chat-service
+
   # ==========================================
   # MIDDLEWARES - Transform and validate requests
   # ==========================================
@@ -89,3 +95,8 @@ http:
       loadBalancer:
         servers:
           - url: "http://monitoring-service:8083"
+
+    chat-service:
+      loadBalancer:
+        servers:
+          - url: "http://chat-service:8084"

@@ -135,6 +135,9 @@ public class DeviceService {
         device.setUserId(deviceDTO.getUserId());
 
         deviceRepository.save(device);
+
+        sendSyncMessage(device, "update_device");
+
         LOGGER.debug("Device with id {} was updated in db", id);
     }
 
@@ -171,6 +174,7 @@ public class DeviceService {
         Device device = deviceOptional.get();
         device.setUserId(userId);
         deviceRepository.save(device);
+        sendSyncMessage(device, "update_device");
         LOGGER.debug("Device with id {} was assigned to user {}", deviceId, userId);
     }
 
@@ -184,10 +188,26 @@ public class DeviceService {
         Device device = deviceOptional.get();
         device.setUserId(null);
         deviceRepository.save(device);
+        sendSyncMessage(device, "update_device");
         LOGGER.debug("Device with id {} was unassigned", deviceId);
     }
 
     public long countDevicesByUser(UUID userId) {
         return deviceRepository.countByUserId(userId);
+    }
+
+    private void sendSyncMessage(Device device, String action) {
+        try {
+            Map<String, Object> syncMsg = new HashMap<>();
+            syncMsg.put("action", action);
+            syncMsg.put("deviceId", device.getId());
+            syncMsg.put("userId", device.getUserId()); // Can be null
+            syncMsg.put("maxConsumption", device.getMaxConsumption());
+
+            rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_NAME, "", syncMsg);
+            LOGGER.debug("Sent sync message: {} for device {}", action, device.getId());
+        } catch (Exception e) {
+            LOGGER.error("Failed to send sync message", e);
+        }
     }
 }

@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitConfig {
 
-    @Value("${app.queue.sensor}")
+    @Value("#{queueConfig.getQueueName()}")
     private String sensorQueue;
 
     // Unique queue for monitoring sync
@@ -23,6 +23,12 @@ public class RabbitConfig {
     @Bean
     public Queue sensorDataQueue() {
         return new Queue(sensorQueue, true);
+    }
+
+    // Queue for sending alerts to the Chat Service
+    @Bean
+    public Queue notificationQueue() {
+        return new Queue("notification.queue", true);
     }
 
     @Bean

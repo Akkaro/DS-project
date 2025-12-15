@@ -6,6 +6,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -21,38 +22,37 @@ public class SyncConsumer {
     public void receiveSyncMessage(Map<String, Object> message) {
         try {
             String action = (String) message.get("action");
+            Object deviceIdObj = message.get("deviceId");
             
-            // Only process device-related actions to avoid NPEs on user events
-            if ("create_device".equals(action)) {
-                Object deviceIdObj = message.get("deviceId");
-                if (deviceIdObj != null) {
-                    UUID deviceId = UUID.fromString(deviceIdObj.toString());
-                    Device device = new Device();
-                    device.setId(deviceId);
-                    
-                    Object maxConsObj = message.get("maxConsumption");
-                    if (maxConsObj instanceof Number) {
-                        device.setMaxConsumption(((Number) maxConsObj).doubleValue());
-                    }
+            if (deviceIdObj == null) return;
+            UUID deviceId = UUID.fromString(deviceIdObj.toString());
 
-                    Object userIdObj = message.get("userId");
-                    if (userIdObj != null) {
-                        device.setUserId(UUID.fromString(userIdObj.toString()));
-                    }
-
-                    deviceRepository.save(device);
-                    System.out.println("Synced new device: " + deviceId);
+            if ("create_device".equals(action) || "update_device".equals(action)) {
+                // For update, try to find existing, or create new if not found
+                Device device = deviceRepository.findById(deviceId).orElse(new Device());
+                device.setId(deviceId);
+                
+                Object maxConsObj = message.get("maxConsumption");
+                if (maxConsObj instanceof Number) {
+                    device.setMaxConsumption(((Number) maxConsObj).doubleValue());
                 }
+
+                Object userIdObj = message.get("userId");
+                if (userIdObj != null) {
+                    device.setUserId(UUID.fromString(userIdObj.toString()));
+                } else {
+                    // Explicitly set to null if missing (unassigned)
+                    device.setUserId(null);
+                }
+
+                deviceRepository.save(device);
+                System.out.println("Synced device update: " + deviceId);
 
             } else if ("delete_device".equals(action)) {
-                Object deviceIdObj = message.get("deviceId");
-                if (deviceIdObj != null) {
-                    UUID deviceId = UUID.fromString(deviceIdObj.toString());
-                    deviceRepository.deleteById(deviceId);
-                    System.out.println("Synced deleted device: " + deviceId);
-                }
+                deviceRepository.deleteById(deviceId);
+                System.out.println("Synced deleted device: " + deviceId);
             }
-            // Ignore "create_user" or other events not relevant to monitoring
+            
         } catch (Exception e) {
             System.err.println("Error processing sync message: " + e.getMessage());
             e.printStackTrace();
