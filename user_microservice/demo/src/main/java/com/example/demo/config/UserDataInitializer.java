@@ -13,7 +13,6 @@ public class UserDataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     
-    // MUST MATCH THE UUID IN AUTH SERVICE
     public static final UUID ADMIN_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     public UserDataInitializer(UserRepository userRepository) {

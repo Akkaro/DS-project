@@ -12,7 +12,6 @@ public class LoadBalancerService {
 
     private final RabbitTemplate rabbitTemplate;
     
-    // Hardcoded for now, but should match the number of replicas in docker-compose
     private static final int REPLICA_COUNT = 2; 
 
     public LoadBalancerService(RabbitTemplate rabbitTemplate) {
@@ -28,11 +27,9 @@ public class LoadBalancerService {
             return;
         }
 
-        // Hashing Logic: Consistent distribution based on Device ID
         int hash = Math.abs(deviceId.hashCode());
         int replicaIndex = hash % REPLICA_COUNT;
         
-        // Construct the target queue name: sensor.queue.0, sensor.queue.1, etc.
         String targetQueue = "sensor.queue." + replicaIndex;
         
         rabbitTemplate.convertAndSend(targetQueue, data);

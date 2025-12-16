@@ -11,7 +11,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitConfig {
-    // Unique Queue Name for Device Service
     public static final String SYNC_QUEUE = "device.sync.queue"; 
     public static final String EXCHANGE_NAME = "internal.exchange";
 

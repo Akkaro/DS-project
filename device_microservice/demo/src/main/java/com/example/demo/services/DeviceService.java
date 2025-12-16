@@ -89,7 +89,6 @@ public class DeviceService {
         Device device = DeviceBuilder.toEntity(deviceDTO);
         device = deviceRepository.save(device);
 
-        // --- SYNC LOGIC START ---
         try {
             Map<String, Object> syncMsg = new HashMap<>();
             syncMsg.put("action", "create_device");
@@ -102,7 +101,6 @@ public class DeviceService {
         } catch (Exception e) {
             LOGGER.error("Failed to send sync message", e);
         }
-        // --- SYNC LOGIC END ---
         LOGGER.debug("Device with id {} was inserted in db", device.getId());
         return device.getId();
     }
@@ -149,7 +147,6 @@ public class DeviceService {
         }
         deviceRepository.deleteById(id);
 
-        // --- SYNC LOGIC START ---
         try {
             Map<String, Object> syncMsg = new HashMap<>();
             syncMsg.put("action", "delete_device");
@@ -159,7 +156,6 @@ public class DeviceService {
         } catch (Exception e) {
              LOGGER.error("Failed to send sync message", e);
         }
-        // --- SYNC LOGIC END ---
 
         LOGGER.debug("Device with id {} was deleted from db", id);
     }

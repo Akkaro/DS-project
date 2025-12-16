@@ -59,18 +59,15 @@ public class SensorConsumer {
             double total = measurements.stream().mapToDouble(Double::doubleValue).sum();
             double totalConsumption = measurements.stream().mapToDouble(Double::doubleValue).sum();
             
-            // --- NEW: Overconsumption Logic ---
             if (totalConsumption > device.getMaxConsumption()) {
                 System.out.println("ALERT: Device " + deviceId + " exceeded max consumption!");
                 
                 String alertMsg = "Device " + device.getId() + " consumed " + totalConsumption + 
                                   "kW, exceeding limit of " + device.getMaxConsumption() + "kW.";
                 
-                // Send to Chat Service
                 NotificationDTO notification = new NotificationDTO(device.getUserId(), alertMsg);
                 rabbitTemplate.convertAndSend("notification.queue", notification);
             }
-            // ----------------------------------
 
             long batchTime = currentBatchTimestamp.get(deviceId);
             LocalDateTime date = LocalDateTime.ofInstant(

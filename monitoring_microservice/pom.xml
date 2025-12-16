@@ -46,7 +46,6 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-amqp</artifactId>
 		</dependency>
-		<!-- REMOVED: Explicit jackson-core dependency that caused conflicts -->
 		<dependency>
     		<groupId>org.springframework.amqp</groupId>
     		<artifactId>spring-rabbit-test</artifactId>

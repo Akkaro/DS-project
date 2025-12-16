@@ -16,7 +16,6 @@ public class RabbitConfig {
     @Value("#{queueConfig.getQueueName()}")
     private String sensorQueue;
 
-    // Unique queue for monitoring sync
     public static final String SYNC_QUEUE = "monitoring.sync.queue";
     public static final String EXCHANGE_NAME = "internal.exchange";
 
@@ -25,7 +24,6 @@ public class RabbitConfig {
         return new Queue(sensorQueue, true);
     }
 
-    // Queue for sending alerts to the Chat Service
     @Bean
     public Queue notificationQueue() {
         return new Queue("notification.queue", true);

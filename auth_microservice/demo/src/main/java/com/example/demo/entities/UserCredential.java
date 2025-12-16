@@ -19,7 +19,6 @@ public class UserCredential {
     @Column(nullable = false)
     private String password;
 
-    // Decoupling: Store role locally to avoid calling User Service during login
     @Column(nullable = false)
     private String role;
 

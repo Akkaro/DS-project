@@ -18,8 +18,6 @@ public class NotificationListener {
     public void handleNotification(NotificationDTO notification) {
         System.out.println("Received notification for user: " + notification.getUserId());
         
-        // Push notification to the specific user's topic
-        // Frontend must subscribe to: /topic/user/{userId}
         messagingTemplate.convertAndSend(
             "/topic/user/" + notification.getUserId(), 
             "NOTIFICATION: " + notification.getMessage()

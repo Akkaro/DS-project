@@ -232,7 +232,7 @@
             <div id="chat-header-content" class="mt-2"></div>
         </div>
         
-        <div id="chat-messages" class="flex-1 h-64 overflow-y-auto p-3 space-y-2 bg-slate-50 text-sm">
+        <div id="chat-messages" class="h-80 overflow-y-auto p-3 space-y-2 bg-slate-50 text-sm">
             <div class="text-center text-slate-400 text-xs mt-2">Connecting...</div>
         </div>
         
@@ -245,30 +245,30 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             
-            // --- API & Auth Configuration ---
+            // API & Auth Configuration
             const API_BASE = '/api';
             let accessToken = null;
             let userRole = null;
             let userId = null;
-            let username = null; // FIXED: Global variable for chat sender
+            let username = null;
         
-            // --- App-wide State ---
+            // App-wide State
             let allUsers = [];
             let allDevices = [];
             let adminUsersMap = new Map();
             let currentChart = null;
             let currentDeviceId = null;
         
-            // --- WebSocket & Chat State ---
+            // WebSocket & Chat State
             let stompClient = null;
-            let chatWithAdmin = false; // false = Bot Mode, true = Admin Mode
+            let chatWithAdmin = false;
             
-            // NEW: Admin Chat State
+            // Admin Chat State
             let activeChatUserId = null; 
             let conversations = new Map(); 
             let unreadCounts = new Map();
 
-            // --- Element Selectors ---
+            // Element Selectors
             const loginView = document.getElementById('login-view');
             const adminView = document.getElementById('admin-view');
             const clientView = document.getElementById('client-view');
@@ -356,8 +356,7 @@
                 loginButton.disabled = true;
                 loginButton.textContent = 'Logging in...';
             
-                // Update global username variable
-                const username = document.getElementById('login-username').value;
+                username = document.getElementById('login-username').value;
                 const password = document.getElementById('login-password').value;
             
                 try {
@@ -384,7 +383,6 @@
                     
                     loginForm.reset();
                 
-                    // Connect to WebSocket after successful login
                     connectWebSocket();
                     
                     setupChatUI();
@@ -407,91 +405,70 @@
                 }
             }
             
-            // --- UI Setup Logic ---
             function setupChatUI() {
                 const headerContent = document.getElementById('chat-header-content');
                 const chatMessages = document.getElementById('chat-messages');
                 const inputArea = document.getElementById('chat-input-area');
                 
-                // Clear header to prevent duplicates
                 headerContent.innerHTML = '';
 
                 if (userRole === 'ADMIN') {
-                    // ADMIN VIEW
-                    // 1. Hide Input initially
                     inputArea.classList.add('hidden');
-                    
-                    // 2. Set default message
+
                     chatMessages.innerHTML = '<div class="text-center text-slate-400 text-xs mt-2">Waiting for client messages...</div>';
-                    
-                    // 3. Add Back Button (Hidden by default)
+
                     headerContent.innerHTML = `<button id="btn-back-inbox" class="w-full py-1 rounded bg-blue-700 text-white text-xs font-bold hidden hover:bg-blue-800 transition">← Back to Inbox</button>`;
                     
-                    // 4. Bind Back Button Event
                     document.getElementById('btn-back-inbox').addEventListener('click', renderAdminInbox);
-                    
-                    // 5. Render Inbox
+
                     renderAdminInbox();
 
                 } else {
-                    // CLIENT VIEW
-                    // 1. Show Input
                     inputArea.classList.remove('hidden');
 
-                    // 2. Inject Bot/Admin Toggles
                     headerContent.innerHTML = `
                         <div class="flex bg-blue-700 rounded p-1 text-xs">
                             <button id="mode-bot" class="flex-1 py-1 rounded bg-white text-blue-800 font-semibold shadow transition">Bot (AI)</button>
                             <button id="mode-admin" class="flex-1 py-1 rounded text-blue-100 hover:text-white transition">Admin</button>
                         </div>`;
                     
-                    // 3. Bind Events dynamically (NOW IT IS SAFE)
                     document.getElementById('mode-bot').addEventListener('click', () => setClientChatMode(false));
                     document.getElementById('mode-admin').addEventListener('click', () => setClientChatMode(true));
                     
-                    // 4. Set Default State
                     setClientChatMode(false); 
                 }
             }
 
-            // --- CLIENT Logic ---
             function setClientChatMode(isAdmin) {
                 chatWithAdmin = isAdmin;
                 const btnBot = document.getElementById('mode-bot');
                 const btnAdmin = document.getElementById('mode-admin');
                 
-                // Safety check in case elements aren't in DOM yet
                 if (!btnBot || !btnAdmin) return;
 
                 if (isAdmin) {
-                    // Admin Active
                     btnAdmin.className = "flex-1 py-1 rounded bg-white text-blue-800 font-semibold shadow transition";
                     btnBot.className = "flex-1 py-1 rounded text-blue-100 hover:text-white transition";
                     appendSystemLog("Switched to Admin Chat.");
                 } else {
-                    // Bot Active
                     btnBot.className = "flex-1 py-1 rounded bg-white text-blue-800 font-semibold shadow transition";
                     btnAdmin.className = "flex-1 py-1 rounded text-blue-100 hover:text-white transition";
                     appendSystemLog("Switched to Support Bot.");
                 }
             }
 
-            // --- ADMIN Incoming Message Logic ---
             function handleAdminIncoming(msg) {
                 try {
                     const body = JSON.parse(msg.body);
                     
-                    // 1. Ignore my own messages (echo prevention)
                     if (body.sender === 'Admin') return;
 
                     const clientID = body.userId;
                     
-                    // 2. Initialize conversation if it doesn't exist
                     if (!conversations.has(clientID)) {
                         conversations.set(clientID, { name: body.sender, msgs: [] });
                     }
                     
-                    // 3. Add message to local history
                     const conversation = conversations.get(clientID);
                     conversation.msgs.push({ 
                         sender: body.sender, 
@@ -499,16 +476,12 @@
                         align: 'left' 
                     });
 
-                    // 4. Update UI
                     if (activeChatUserId === clientID) {
-                        // If I am currently chatting with this user, show the message immediately
                         appendMessage(body.sender, body.content, 'left'); 
                     } else {
-                        // Otherwise, increment unread count
                         const currentCount = unreadCounts.get(clientID) || 0;
                         unreadCounts.set(clientID, currentCount + 1);
                         
-                        // If I am looking at the inbox, refresh it to show the unread badge
                         if (!activeChatUserId) {
                             renderAdminInbox(); 
                         }
@@ -518,11 +491,9 @@
                 }
             }
 
-            // --- Admin Inbox Logic ---
             function renderAdminInbox() {
                 activeChatUserId = null; 
                 
-                // Hide Back Button & Input Area
                 document.getElementById('btn-back-inbox').classList.add('hidden');
                 document.getElementById('chat-input-area').classList.add('hidden'); 
                 
@@ -556,7 +527,6 @@
                 activeChatUserId = cId;
                 unreadCounts.set(cId, 0); 
                 
-                // Show Back Button & Input Area
                 document.getElementById('btn-back-inbox').classList.remove('hidden');
                 document.getElementById('chat-input-area').classList.remove('hidden'); 
                 
@@ -568,7 +538,6 @@
             }
         
             function connectWebSocket() {
-                // Prevent double connections
                 if (stompClient && stompClient.connected) return;
 
                 const socket = new SockJS('/ws');
@@ -578,21 +547,16 @@
                 stompClient.connect({}, () => {
                     console.log('Connected to WebSocket');
                 
-                    /* ----------------------------------
-                       CLIENT: personal topic
-                    ---------------------------------- */
                     if (userRole === 'CLIENT') {
                         const userTopic = `/topic/user/${userId}`;
                     
                         stompClient.subscribe(userTopic, (msg) => {
-                            // Notifications (plain text)
                             if (msg.body.startsWith("NOTIFICATION:")) {
                                 const text = msg.body.replace("NOTIFICATION: ", "");
                                 showModal("System Alert", text, true);
                                 return;
                             }
                         
-                            // Chat message (JSON)
                             try {
                                 const body = JSON.parse(msg.body);
                                 if (body.sender && body.content) {
@@ -604,9 +568,6 @@
                         });
                     }
                 
-                    /* ----------------------------------
-                       ADMIN: global inbox topic
-                    ---------------------------------- */
                     if (userRole === 'ADMIN') {
                         stompClient.subscribe('/topic/admin', (msg) => {
                             try {
@@ -617,7 +578,6 @@
                         });
                     }
                 
-                    // Show chat toggle once connected
                     chatToggleBtn.classList.remove('hidden');
                 
                 }, (error) => {
@@ -631,20 +591,15 @@
             
                 let chatMessage;
             
-                /* ----------------------------------
-                   CLIENT → ADMIN
-                ---------------------------------- */
                 if (userRole === 'CLIENT') {
                     chatMessage = {
                         sender: username,
                         content: content,
-                        userId: userId              // sender (client) ID
+                        userId: userId,
+                        chatWithAdmin: chatWithAdmin
                     };
                 }
             
-                /* ----------------------------------
-                   ADMIN → CLIENT
-                ---------------------------------- */
                 if (userRole === 'ADMIN') {
                     if (!activeChatUserId) {
                         alert("Select a client first");
@@ -654,14 +609,12 @@
                     chatMessage = {
                         sender: 'Admin',
                         content: content,
-                        targetUserId: activeChatUserId   // receiver (client) ID
+                        userId: activeChatUserId
                     };
                 }
             
-                // Send message
                 stompClient.send("/app/chat", {}, JSON.stringify(chatMessage));
             
-                // Show message instantly in UI
                 appendMessage("Me", content, 'right');
             
                 chatInput.value = '';
@@ -688,13 +641,11 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
         
-            // --- Chat Event Listeners ---
             chatToggleBtn.addEventListener('click', () => chatWindow.classList.toggle('hidden'));
             document.getElementById('chat-close-btn').addEventListener('click', () => chatWindow.classList.add('hidden'));
             document.getElementById('chat-send-btn').addEventListener('click', sendMessage);
             chatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
         
-            // --- API Fetch Wrapper ---
             async function fetchApi(url, options = {}) {
                 const headers = {
                     ...options.headers,
@@ -724,7 +675,6 @@
                 return await response.json();
             }
         
-            // --- Modal Helper Functions ---
             function showModal(title, message, isError = false) {
                 modalTitle.textContent = title;
                 modalMessage.innerHTML = message;
@@ -744,9 +694,6 @@
             modalBackdrop.addEventListener('click', (e) => {
                 if (e.target === modalBackdrop) hideModal();
             });
-        
-        
-            // --- ADMIN VIEW: Data Loading and Rendering ---
             
             async function loadAdminData() {
                 try {
@@ -840,7 +787,6 @@
                 });
             }
         
-            // --- CLIENT VIEW: Data Loading and Rendering ---
             async function loadClientData() {
                 if (!userId) {
                     handleLogout();
@@ -894,7 +840,6 @@
                 });
             }
             
-            // --- Update Modal Functions ---
         
             function showUpdateUserModal(user) {
                 const formHtml = `
@@ -1102,7 +1047,6 @@
             adminLogoutBtn.addEventListener('click', handleLogout);
             clientLogoutBtn.addEventListener('click', handleLogout);
         
-            // --- ADMIN Event Listeners (Forms) ---
             adminUserForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const formData = new FormData(adminUserForm);
@@ -1160,7 +1104,6 @@
                 }
             });
         
-            // --- ADMIN Event Listeners (Event Delegation for Lists) ---
             adminUserList.addEventListener('click', async (e) => {
                 const target = e.target;
                 const userId = target.dataset.id;

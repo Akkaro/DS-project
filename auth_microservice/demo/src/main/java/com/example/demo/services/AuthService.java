@@ -48,25 +48,20 @@ public class AuthService {
     @Transactional
     public Mono<Void> register(RegisterRequestDTO registerRequest) {
         return Mono.fromRunnable(() -> {
-            // 1. Validation
             if (userCredentialRepository.findByUsername(registerRequest.getUsername()).isPresent()) {
                 throw new CustomException("Username exists", HttpStatus.CONFLICT, "auth", List.of("Username already taken"));
             }
 
-            // 2. Create ID locally
             UUID userId = UUID.randomUUID();
 
-            // 3. Save Credentials + Role locally (Auth DB)
             UserCredential credential = new UserCredential(
                     userId,
                     registerRequest.getUsername(),
                     passwordEncoder.encode(registerRequest.getPassword()),
-                    registerRequest.getRole() // Storing role locally for decoupled login
+                    registerRequest.getRole()
             );
             userCredentialRepository.save(credential);
 
-            // 4. Publish "create_user" Event to RabbitMQ
-            // Consumed by User-Service (to create profile) and Device-Service
             Map<String, Object> syncMsg = new HashMap<>();
             syncMsg.put("action", "create_user");
             syncMsg.put("userId", userId.toString());
@@ -85,16 +80,13 @@ public class AuthService {
     }
 
     public Mono<AuthResponseDTO> login(LoginRequestDTO loginRequest) {
-        // 1. Local Credential Check
         return Mono.justOrEmpty(userCredentialRepository.findByUsername(loginRequest.getUsername()))
                 .switchIfEmpty(Mono.error(new CustomException("Invalid credentials", HttpStatus.UNAUTHORIZED, "login", List.of("User not found"))))
                 .flatMap(creds -> {
-                    // 2. Validate Password
                     if (!passwordEncoder.matches(loginRequest.getPassword(), creds.getPassword())) {
                         return Mono.error(new CustomException("Invalid credentials", HttpStatus.UNAUTHORIZED, "login", List.of("Invalid password")));
                     }
 
-                    // 3. Generate Token using LOCAL role (No call to User Service)
                     String accessToken = jwtService.generateToken(creds.getUsername(), creds.getId(), creds.getRole());
                     RefreshToken refreshToken = refreshTokenService.createRefreshToken(creds.getId(), creds.getUsername());
                     
@@ -109,7 +101,6 @@ public class AuthService {
 
             refreshTokenService.verifyExpiration(refreshToken);
 
-            // Retrieve the user credentials to get the role again
             UserCredential creds = userCredentialRepository.findById(refreshToken.getUserId())
                     .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND, "auth", List.of("User for token does not exist")));
 
@@ -134,7 +125,6 @@ public class AuthService {
     @Transactional
     public Mono<Void> deleteUser(UUID userId) {
         return Mono.fromRunnable(() -> {
-            // 1. Delete local credentials
             if (userCredentialRepository.existsById(userId)) {
                 userCredentialRepository.deleteById(userId);
                 log.info("Deleted credentials for user: {}", userId);
@@ -142,13 +132,11 @@ public class AuthService {
                 log.warn("User {} not found in Auth DB, sending sync event anyway.", userId);
             }
 
-            // 2. Publish "delete_user" Event to RabbitMQ
             Map<String, Object> syncMsg = new HashMap<>();
             syncMsg.put("action", "delete_user");
             syncMsg.put("userId", userId.toString());
 
             try {
-                // Use the same exchange used in registration
                 rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE_NAME, "", syncMsg);
                 log.info("Published delete_user event for user: {}", userId);
             } catch (Exception e) {

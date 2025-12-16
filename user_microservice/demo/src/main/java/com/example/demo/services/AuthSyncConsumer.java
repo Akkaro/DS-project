@@ -28,7 +28,6 @@ public class AuthSyncConsumer {
             String action = (String) message.get("action");
             
             if ("create_user".equals(action)) {
-                // ... existing creation logic ...
                 String userIdStr = (String) message.get("userId");
                 String username = (String) message.get("username");
                 String name = (String) message.get("name");
@@ -53,7 +52,6 @@ public class AuthSyncConsumer {
                     }
                 }
             } else if ("delete_user".equals(action)) {
-                // --- NEW DELETION LOGIC ---
                 String userIdStr = (String) message.get("userId");
                 if (userIdStr != null) {
                     UUID userId = UUID.fromString(userIdStr);

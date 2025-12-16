@@ -1,10 +1,10 @@
 package com.example.chat.dtos;
 
 public class ChatMessage {
-    private String sender;      // "Admin" or Client Username
+    private String sender;
     private String content;
-    private String userId;      // The Client's ID (Sender for user msgs, Recipient for admin replies)
-    private boolean chatWithAdmin; // TRUE = Talk to Human, FALSE = Talk to Bot
+    private String userId;
+    private boolean chatWithAdmin;
 
     public ChatMessage() {}
 

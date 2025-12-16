@@ -46,7 +46,6 @@ public class UserSyncConsumer {
                     UUID userId = UUID.fromString(userIdStr);
                     LOGGER.info("Received sync event: User deleted with ID {}", userId);
                     
-                    // Delete the user ID from local database
                     if (userRepository.existsById(userId)) {
                         userRepository.deleteById(userId);
                         LOGGER.debug("User {} deleted from local database.", userId);

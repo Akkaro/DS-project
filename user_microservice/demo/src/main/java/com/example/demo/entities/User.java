@@ -27,11 +27,9 @@ public class User implements Serializable {
     @Column(nullable = false)
     private Role role;
 
-    // Default Constructor
     public User() {
     }
 
-    // All-Args Constructor
     public User(UUID id, String username, String name, String email, Role role) {
         this.id = id;
         this.username = username;
@@ -40,7 +38,6 @@ public class User implements Serializable {
         this.role = role;
     }
 
-    // Getters and Setters
     public UUID getId() {
         return id;
     }

@@ -28,7 +28,6 @@ public class SyncConsumer {
             UUID deviceId = UUID.fromString(deviceIdObj.toString());
 
             if ("create_device".equals(action) || "update_device".equals(action)) {
-                // For update, try to find existing, or create new if not found
                 Device device = deviceRepository.findById(deviceId).orElse(new Device());
                 device.setId(deviceId);
                 
@@ -41,7 +40,6 @@ public class SyncConsumer {
                 if (userIdObj != null) {
                     device.setUserId(UUID.fromString(userIdObj.toString()));
                 } else {
-                    // Explicitly set to null if missing (unassigned)
                     device.setUserId(null);
                 }
 

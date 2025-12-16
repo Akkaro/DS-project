@@ -70,7 +70,6 @@ public class UserService {
         
         user = userRepository.save(user);
         
-        // --- SYNC LOGIC START ---
         try {
             Map<String, Object> syncMsg = new HashMap<>();
             syncMsg.put("action", "create_user");
@@ -81,7 +80,6 @@ public class UserService {
         } catch (Exception e) {
             LOGGER.error("Failed to send sync message", e);
         }
-        // --- SYNC LOGIC END ---
         
         LOGGER.debug("User with id {} was inserted in db", user.getId());
         return user.getId();
@@ -123,7 +121,6 @@ public class UserService {
         }
         userRepository.deleteById(id);
         
-        // --- SYNC LOGIC START ---
         try {
             Map<String, Object> syncMsg = new HashMap<>();
             syncMsg.put("action", "delete_user");
@@ -134,7 +131,6 @@ public class UserService {
         } catch (Exception e) {
             LOGGER.error("Failed to send sync message", e);
         }
-        // --- SYNC LOGIC END ---
         
         LOGGER.debug("User with id {} was deleted from db", id);
     }

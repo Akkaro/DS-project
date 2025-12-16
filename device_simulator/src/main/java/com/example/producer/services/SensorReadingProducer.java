@@ -17,7 +17,6 @@ public class SensorReadingProducer {
 
     private final RabbitTemplate rabbitTemplate;
 
-    // Inject the ID from the environment variable (defined in docker-compose)
     @Value("${DEVICE_ID}")
     private UUID configuredDeviceId;
     
@@ -25,9 +24,6 @@ public class SensorReadingProducer {
 
     private BufferedReader reader;
 
-    // BATCH SIZE: How many lines to process per scheduled tick.
-    // 6 lines = 1 hour of data per tick.
-    // Increase this to speed up simulation (e.g., 144 = 1 day per tick).
     private static final int BATCH_SIZE = 6; 
 
     public SensorReadingProducer(RabbitTemplate rabbitTemplate) {
@@ -50,7 +46,6 @@ public class SensorReadingProducer {
         }
     }
 
-    // Run every 1000ms (1 second)
     @Scheduled(fixedRate = 1000) 
     public void sendDataBatch() {
         if (reader == null) {
@@ -89,8 +84,6 @@ public class SensorReadingProducer {
             }
 
             long timestamp = Long.parseLong(parts[0].trim());
-            // OLD: UUID deviceId = UUID.fromString(parts[1].trim());
-            // NEW: Use the configured ID from Docker
             UUID deviceId = configuredDeviceId;
             double measurement = Double.parseDouble(parts[2].trim());
 

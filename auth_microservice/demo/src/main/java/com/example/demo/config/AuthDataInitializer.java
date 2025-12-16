@@ -14,7 +14,6 @@ public class AuthDataInitializer implements CommandLineRunner {
     private final UserCredentialRepository repository;
     private final PasswordEncoder passwordEncoder;
 
-    // Hardcoded ID to ensure it matches the ID created in User Service
     public static final UUID ADMIN_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     public AuthDataInitializer(UserCredentialRepository repository, PasswordEncoder passwordEncoder) {
@@ -29,7 +28,7 @@ public class AuthDataInitializer implements CommandLineRunner {
                     ADMIN_ID,
                     "admin",
                     passwordEncoder.encode("admin123"),
-                    "ADMIN" // Role stored locally
+                    "ADMIN"
             );
             repository.save(admin);
             System.out.println("CREATED DEFAULT ADMIN CREDENTIALS IN AUTH-DB");
